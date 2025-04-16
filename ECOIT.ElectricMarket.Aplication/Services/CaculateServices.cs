@@ -36,15 +36,23 @@ namespace ECOIT.ElectricMarket.Application.Services
                 adapter.Fill(dfA0);
             }
 
-            if (dfA0.Rows.Count > 0)
-            {
-                dfA0.Rows.RemoveAt(0);
-                Console.WriteLine("⚠️ Đã xoá dòng đầu tiên của bảng A0 (không kiểm tra).");
-            }
-
             // 2. Tạo bảng sai khác
             var diffTable = dfFMP.Clone();
 
+            // 🔧 Hàm chuẩn hoá số trước khi parse
+            string NormalizeNumber(string raw)
+            {
+                if (string.IsNullOrWhiteSpace(raw)) return "0";
+                raw = raw.Trim();
+
+                if (raw.Contains(" ") && raw.Contains(".")) // ví dụ: "1 572.800"
+                    raw = raw.Replace(" ", "").Replace(",", "").Replace(".", ",");
+
+                else if (!raw.Contains(",") && raw.Contains(".")) // ví dụ: "1808.9"
+                    raw = raw.Replace(".", ",");
+
+                return raw.Replace(",", "."); // để parse bằng InvariantCulture
+            }
 
             for (int i = 0; i < dfFMP.Rows.Count; i++)
             {
@@ -53,20 +61,25 @@ namespace ECOIT.ElectricMarket.Application.Services
                 newRow["Giá"] = "Pm";
 
                 var sharedColumns = dfFMP.Columns
-                .Cast<DataColumn>()
-                .Where(c => c.ColumnName != "Ngày" && c.ColumnName != "Giá" && dfA0.Columns.Contains(c.ColumnName))
-                .ToList();
-                var ngay = dfFMP.Rows[i]["Ngày"].ToString();
+                    .Cast<DataColumn>()
+                    .Where(c => c.ColumnName != "Ngày" && c.ColumnName != "Giá" && dfA0.Columns.Contains(c.ColumnName))
+                    .ToList();
+
+                var ngay = dfFMP.Rows[i]["Ngày"]?.ToString();
+
                 foreach (var col in sharedColumns)
                 {
-                    double.TryParse(dfFMP.Rows[i][col.ColumnName]?.ToString(), out double fmp);
-                    double.TryParse(dfA0.Rows[i][col.ColumnName]?.ToString(), out double a0);
+                    var fmpRaw = NormalizeNumber(dfFMP.Rows[i][col.ColumnName]?.ToString() ?? "0");
+                    var a0Raw = NormalizeNumber(dfA0.Rows[i][col.ColumnName]?.ToString() ?? "0");
+
+                    double.TryParse(fmpRaw, NumberStyles.Any, CultureInfo.InvariantCulture, out double fmp);
+                    double.TryParse(a0Raw, NumberStyles.Any, CultureInfo.InvariantCulture, out double a0);
 
                     var diff = fmp - a0;
+                    Console.WriteLine($"📅 Ngày {ngay} | 🕒 Giờ {col.ColumnName} | FMP = {fmp} - A0 = {a0} → Sai khác = {diff}");
 
-                    newRow[col.ColumnName] = (fmp - a0).ToString("0.###");
+                    newRow[col.ColumnName] = diff.ToString("0.###", CultureInfo.InvariantCulture);
                 }
-
 
                 diffTable.Rows.Add(newRow);
             }
@@ -94,15 +107,13 @@ namespace ECOIT.ElectricMarket.Application.Services
             }
 
             await bulkCopy.WriteToServerAsync(diffTable);
-
-            Console.WriteLine($"✅ Tạo và lưu bảng '{safeTableName}' thành công với {diffTable.Rows.Count} dòng.");
         }
 
         public async Task CalculateFmpAsync()
         {
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
-            //lấy data
+
             var rawData = new DataTable();
             var cmd = new SqlCommand(@"
             SELECT * FROM NhậpgiáNM
@@ -118,14 +129,15 @@ namespace ECOIT.ElectricMarket.Application.Services
                 .ToList();
 
             var smpRows = rawData.AsEnumerable()
-                .Where(r => r["Giá"].ToString().Trim() == "SMP")
+                .Where(r => r["Giá"].ToString().Trim() == "SMP"
+                         && !string.IsNullOrWhiteSpace(r["Ngày"]?.ToString()))
                 .ToList();
 
             var canRows = rawData.AsEnumerable()
-                .Where(r => r["Giá"].ToString().Trim() == "CAN")
+                .Where(r => r["Giá"].ToString().Trim() == "CAN"
+                         && !string.IsNullOrWhiteSpace(r["Ngày"]?.ToString()))
                 .ToList();
 
-            //  Join theo ngày
             var joined = from smp in smpRows
                          join can in canRows
                          on smp["Ngày"].ToString().Trim() equals can["Ngày"].ToString().Trim()
@@ -139,44 +151,41 @@ namespace ECOIT.ElectricMarket.Application.Services
 
             foreach (var pair in joined)
             {
-                //Console.WriteLine($" Ngày {pair.Ngay}");
-
                 var newRow = fmpTable.NewRow();
                 newRow["Ngày"] = pair.Ngay;
                 newRow["Giá"] = "FMP";
 
                 foreach (var col in timeCols)
                 {
-                    var smpRaw = pair.RowSMP[col]?.ToString();
-                    var canRaw = pair.RowCAN[col]?.ToString();
+                    string NormalizeNumber(string raw)
+                    {
+                        if (string.IsNullOrWhiteSpace(raw)) return "0";
+                        raw = raw.Trim();
 
-                    //Console.WriteLine($"Giờ {col} | SMP raw: '{smpRaw}' | CAN raw: '{canRaw}'");
+                        if (raw.Contains(" ") && raw.Contains("."))
+                            raw = raw.Replace(" ", "").Replace(",", "").Replace(".", ",");
 
-                    var smpStr = smpRaw?.Replace(" ", "").Replace(".", "").Trim() ?? "0";
+                        else if (!raw.Contains(",") && raw.Contains("."))
+                            raw = raw.Replace(".", ",");
 
-                    var canStr = canRaw?.Replace(".", "").Trim() ?? "0";
+                        return raw.Replace(",", ".");
+                    }
 
-                    double smpVal = double.TryParse(smpStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var smp) ? smp : 0;
-                    double canVal = double.TryParse(canStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var can) ? can : 0;
+                    var smpStr = NormalizeNumber(pair.RowSMP[col]?.ToString());
+                    var canStr = NormalizeNumber(pair.RowCAN[col]?.ToString());
 
-                    Console.WriteLine($"Parsed SMP: {smpVal} | Parsed CAN: {canVal}");
+                    double.TryParse(smpStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double smpVal);
+                    double.TryParse(canStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double canVal);
 
-                    //newRow[col] = (smpVal + canVal).ToString("0.#####", CultureInfo.InvariantCulture);
-                    //newRow[col] = (smpVal + canVal).ToString("0.####", CultureInfo.InvariantCulture);
-                    //var fmpVal = Math.Round(smpVal + canVal, 4); // Làm tròn 4 chữ số sau dấu chấm
-                    //newRow[col] = fmpVal.ToString("0.####", CultureInfo.InvariantCulture);
-
-                    double fmpVal = smpVal + canVal;
-                    newRow[col] = fmpVal.ToString("N3", CultureInfo.InvariantCulture);
+                    double fmpVal = Math.Round(smpVal + canVal, 4);
+                    newRow[col] = fmpVal.ToString("0.###", CultureInfo.InvariantCulture);
                 }
 
                 fmpTable.Rows.Add(newRow);
             }
 
-            //  Kiểm tra và tạo bảng nếu chưa có
             var checkCmd = new SqlCommand(@"
-            IF OBJECT_ID('FMP', 'U') IS NULL
-            SELECT 0 ELSE SELECT 1", conn);
+            IF OBJECT_ID('FMP', 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
             var exists = (int)await checkCmd.ExecuteScalarAsync();
 
             if (exists == 0)
@@ -190,15 +199,12 @@ namespace ECOIT.ElectricMarket.Application.Services
                 await createCmd.ExecuteNonQueryAsync();
             }
 
-            // 6. Ghi dữ liệu vào bảng
             using var bulk = new SqlBulkCopy(conn);
             bulk.DestinationTableName = "FMP";
             foreach (DataColumn col in fmpTable.Columns)
                 bulk.ColumnMappings.Add(col.ColumnName, col.ColumnName);
 
             await bulk.WriteToServerAsync(fmpTable);
-            //Console.WriteLine("passs");
         }
-
     }
 }
