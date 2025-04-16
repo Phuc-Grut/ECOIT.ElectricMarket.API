@@ -1,0 +1,6 @@
+@ECOIT.ElectricMarket.API_HostAddress = http://localhost:5122
+
+GET {{ECOIT.ElectricMarket.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
