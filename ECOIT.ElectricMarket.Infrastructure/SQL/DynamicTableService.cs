@@ -5,6 +5,8 @@ using Microsoft.Extensions.Configuration;
 using Dapper;
 using OfficeOpenXml;
 using System.Data;
+using System.Globalization;
+using System.Text;
 
 namespace ECOIT.ElectricMarket.Infrastructure.SQL
 {
@@ -17,15 +19,73 @@ namespace ECOIT.ElectricMarket.Infrastructure.SQL
         }
         public async Task CreateTableAsync(string tableName, List<string> columnNames)
         {
-            Console.WriteLine(tableName);
-            var safeTableName = $"{Regex.Replace(tableName, @"\W+", "")}";
+            var safeTableName = Regex.Replace(tableName, @"\W+", "");
+
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var checkCmd = new SqlCommand(@"
+            IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
+            checkCmd.Parameters.AddWithValue("@tableName", safeTableName);
+            var exists = (int)await checkCmd.ExecuteScalarAsync();
+
+            if (exists == 1)
+                throw new Exception($" Bảng '{safeTableName}' đã tồn tại, không thể thêm mới.");
+
             var columnsSql = columnNames
                 .Select(col => $"[{Regex.Replace(col, @"\W+", "")}] NVARCHAR(MAX)");
 
             var createSql = $"CREATE TABLE [{safeTableName}] ({string.Join(", ", columnsSql)})";
 
-            using var conn = new SqlConnection(_connectionString);
             await conn.ExecuteAsync(createSql);
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetTableDataAsync(string tableName)
+        {
+            var safeTable = new string(tableName.Where(char.IsLetterOrDigit).ToArray());
+
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var cmd = new SqlCommand($"SELECT * FROM [{safeTable}]", conn);
+            var adapter = new SqlDataAdapter(cmd);
+            var table = new DataTable();
+            adapter.Fill(table);
+
+            var result = new List<Dictionary<string, object>>();
+            foreach (DataRow row in table.Rows)
+            {
+                var dict = new Dictionary<string, object>();
+                foreach (DataColumn col in table.Columns)
+                {
+                    dict[col.ColumnName] = row[col] is DBNull ? null : row[col];
+                }
+                result.Add(dict);
+            }
+
+            return result;
+        }
+
+        public async Task<List<string>> GetTableNamesAsync()
+        {
+            var tables = new List<string>();
+
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var cmd = new SqlCommand(@"
+            SELECT TABLE_NAME
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_TYPE = 'BASE TABLE'
+        ", conn);
+
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                tables.Add(reader.GetString(0));
+            }
+
+            return tables;
         }
 
         public async Task InsertDataAsync(string tableName, List<string> columnNames, List<List<string>> rows)

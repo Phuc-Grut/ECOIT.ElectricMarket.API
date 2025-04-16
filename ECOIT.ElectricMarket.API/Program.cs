@@ -13,7 +13,7 @@ builder.Services.AddControllers();
 
 
 builder.Services.AddScoped<IDynamicTableService, DynamicTableService>();
-builder.Services.AddScoped<SheetImportHandler>();
+builder.Services.AddScoped<ISheetImportHandler, SheetImportHandler>();
 builder.Services.AddScoped<ICaculateServices, CaculateServices>();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

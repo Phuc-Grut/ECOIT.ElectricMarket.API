@@ -1,8 +1,10 @@
-﻿using ECOIT.ElectricMarket.Application.Interface;
+﻿using ECOIT.ElectricMarket.Aplication.Interface;
+using ECOIT.ElectricMarket.Application.Interface;
 using ECOIT.ElectricMarket.Application.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using OfficeOpenXml;
+using System.Data.SqlClient;
 
 namespace ECOIT.ElectricMarket.API.Controllers
 {
@@ -10,12 +12,14 @@ namespace ECOIT.ElectricMarket.API.Controllers
     [ApiController]
     public class ExcelImportController : ControllerBase
     {
-        private readonly SheetImportHandler _importHandler;
+        private readonly ISheetImportHandler _importHandler;
         private readonly ICaculateServices _caculateService;
-        public ExcelImportController(SheetImportHandler importHandler, ICaculateServices caculate)
+        private readonly IDynamicTableService _tableService;
+        public ExcelImportController(ISheetImportHandler importHandler, ICaculateServices caculate, IDynamicTableService tableService)
         {
             _importHandler = importHandler;
             _caculateService = caculate;
+            _tableService = tableService;
         }
 
         [HttpPost("import-sheet")]
@@ -27,19 +31,26 @@ namespace ECOIT.ElectricMarket.API.Controllers
             [FromQuery] string? sheetName,
             [FromQuery] int? endRow = null)
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            try
+            {
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
-            if (file == null || file.Length == 0)
-                return BadRequest("File không hợp lệ");
+                if (file == null || file.Length == 0)
+                    return BadRequest("File không hợp lệ");
 
-            using var stream = new MemoryStream();
-            await file.CopyToAsync(stream);
+                using var stream = new MemoryStream();
+                await file.CopyToAsync(stream);
 
-            var tableName = string.IsNullOrWhiteSpace(sheetName) ? selectedSheet : sheetName;
+                var tableName = string.IsNullOrWhiteSpace(sheetName) ? selectedSheet : sheetName;
 
-            await _importHandler.ImportSheetAsync(stream, selectedSheet, headerRow, startRow, tableName, endRow);
+                await _importHandler.ImportSheetAsync(stream, selectedSheet, headerRow, startRow, tableName, endRow);
 
-            return Ok(new { message = $"Đã import sheet '{selectedSheet}' vào bảng '{tableName}' thành công." });
+                return Ok(new { message = $"Đã import sheet '{selectedSheet}' vào bảng '{tableName}' thành công." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
 
@@ -63,18 +74,47 @@ namespace ECOIT.ElectricMarket.API.Controllers
 
             return Ok(sheetNames);
         }
-        [HttpPost("calculate-fmp")]
+        [HttpPost("caculate-fmp")]
         public async Task<IActionResult> CalculateFmp()
         {
-            await _caculateService.CalculateFmpAsync();
-            return Ok("Đã tính toán và lưu FMP vào bảng thành công.");
+            try
+            {
+                await _caculateService.CalculateFmpAsync();
+                return Ok(new { message = "Tính FMP thành công!" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
+
 
         [HttpPost("calculate-pm")]
         public async Task<IActionResult> CalculatePM()
         {
-            await _caculateService.CaculatePmAsync("FMP", "GiáA0côngbố", "SaiKhac");
-            return Ok("Đã tính toán và lưu FMP vào bảng thành công.");
+            try
+            {
+                await _caculateService.CaculatePmAsync("FMP", "GiaA0congbo", "SaiKhac(PM)");
+                return Ok("Tính FM thành công");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            };
+        }
+
+        [HttpGet("tables")]
+        public async Task<IActionResult> GetTables()
+        {
+            var tables = await _tableService.GetTableNamesAsync();
+            return Ok(tables);
+        }
+
+        [HttpGet("data-table")]
+        public async Task<IActionResult> GetTableData(string tableName)
+        {
+            var data = await _tableService.GetTableDataAsync(tableName);
+            return Ok(data);
         }
 
     }

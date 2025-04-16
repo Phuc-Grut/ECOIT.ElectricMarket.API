@@ -1,17 +1,35 @@
 ﻿using ECOIT.ElectricMarket.Aplication.Interface;
+using ECOIT.ElectricMarket.Application.Interface;
 using OfficeOpenXml;
-using System.ComponentModel;
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace ECOIT.ElectricMarket.Application.Services;
 
-public class SheetImportHandler
+public class SheetImportHandler : ISheetImportHandler
 {
     private readonly IDynamicTableService _tableService;
-
     public SheetImportHandler(IDynamicTableService tableService)
     {
         _tableService = tableService;
+    }
+
+    private static string NormalizeVietnamese(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return string.Empty;
+
+        var normalized = input.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder();
+
+        foreach (var ch in normalized)
+        {
+            var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(ch);
+            if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                sb.Append(ch);
+        }
+
+        return sb.ToString().Normalize(NormalizationForm.FormC);
     }
 
     public async Task ImportSheetAsync(Stream fileStream, string sheetName, int headerRow, int startRow, string? tableName = null, int? endRow = null)
@@ -46,6 +64,8 @@ public class SheetImportHandler
             rows.Add(rowData);
         }
         var finalTableName = string.IsNullOrWhiteSpace(tableName) ? sheetName : tableName;
+        var normalizedTableName = Regex.Replace(NormalizeVietnamese(finalTableName), @"\W+", "");
+
 
         //columns.Insert(0, "STT");
 
@@ -62,8 +82,7 @@ public class SheetImportHandler
 
         //    rows.Add(rowData);
         //}
-
-        await _tableService.CreateTableAsync(finalTableName, columns);
-        await _tableService.InsertDataAsync(finalTableName, columns, rows);
+        await _tableService.CreateTableAsync(normalizedTableName, columns);
+        await _tableService.InsertDataAsync(normalizedTableName, columns, rows);
     }
 }
