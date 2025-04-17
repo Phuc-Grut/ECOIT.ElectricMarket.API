@@ -10,5 +10,7 @@ namespace ECOIT.ElectricMarket.Application.Interface
     {
         Task CalculateFmpAsync();
         Task CaculatePmAsync(string tableFMP, string tableA0, string resultTableName);
+        Task CalculateCFMPAsync();
+        Task CaculatePmCFMPAsync();
     }
 }

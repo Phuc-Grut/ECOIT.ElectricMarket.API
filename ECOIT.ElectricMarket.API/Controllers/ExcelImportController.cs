@@ -88,7 +88,6 @@ namespace ECOIT.ElectricMarket.API.Controllers
             }
         }
 
-
         [HttpPost("calculate-pm")]
         public async Task<IActionResult> CalculatePM()
         {
@@ -101,6 +100,20 @@ namespace ECOIT.ElectricMarket.API.Controllers
             {
                 return BadRequest(new { error = ex.Message });
             };
+        }
+
+        [HttpPost("calculate-PM(CFMP)")]
+        public async Task<IActionResult> CalculateCFMP()
+        {
+            try
+            {
+                await _caculateService.CalculateCFMPAsync();
+                return Ok(new { message = "Tính CFMP thành công!" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
         [HttpGet("tables")]
@@ -117,5 +130,18 @@ namespace ECOIT.ElectricMarket.API.Controllers
             return Ok(data);
         }
 
+        [HttpPost("calculate-pmcfmp")]
+        public async Task<IActionResult> CalculatePmCfmp()
+        {
+            try
+            {
+                await _caculateService.CaculatePmCFMPAsync();
+                return Ok("Tính pmcfmp thành công");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            };
+        }
     }
 }

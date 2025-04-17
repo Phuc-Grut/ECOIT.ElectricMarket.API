@@ -42,7 +42,7 @@ namespace ECOIT.ElectricMarket.Infrastructure.SQL
 
         public async Task<List<Dictionary<string, object>>> GetTableDataAsync(string tableName)
         {
-            var safeTable = new string(tableName.Where(char.IsLetterOrDigit).ToArray());
+            var safeTable = new string(tableName.Where(c => char.IsLetterOrDigit(c) || c == '_').ToArray());
 
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
