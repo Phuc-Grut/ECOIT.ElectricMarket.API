@@ -1,4 +1,5 @@
 ﻿using ECOIT.ElectricMarket.Aplication.Interface;
+using ECOIT.ElectricMarket.Application.DTO;
 using ECOIT.ElectricMarket.Application.Interface;
 using ECOIT.ElectricMarket.Application.Services;
 using Microsoft.AspNetCore.Http;
@@ -15,11 +16,13 @@ namespace ECOIT.ElectricMarket.API.Controllers
         private readonly ISheetImportHandler _importHandler;
         private readonly ICaculateServices _caculateService;
         private readonly IDynamicTableService _tableService;
-        public ExcelImportController(ISheetImportHandler importHandler, ICaculateServices caculate, IDynamicTableService tableService)
+        private readonly ICalculateTableServices _calculateTableServices;
+        public ExcelImportController(ISheetImportHandler importHandler, ICaculateServices caculate, IDynamicTableService tableService, ICalculateTableServices calculateTableServices)
         {
             _importHandler = importHandler;
             _caculateService = caculate;
             _tableService = tableService;
+            _calculateTableServices = calculateTableServices;
         }
 
         [HttpPost("import-sheet")]
@@ -74,13 +77,34 @@ namespace ECOIT.ElectricMarket.API.Controllers
 
             return Ok(sheetNames);
         }
+        //[HttpPost("caculate-fmp")]
+        //public async Task<IActionResult> CalculateFmp()
+        //{
+        //    try
+        //    {
+        //        await _caculateService.CalculateFmpAsync();
+        //        return Ok(new { message = "Tính FMP thành công!" });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(new { error = ex.Message });
+        //    }
+        //}
+
         [HttpPost("caculate-fmp")]
         public async Task<IActionResult> CalculateFmp()
         {
             try
             {
-                await _caculateService.CalculateFmpAsync();
-                return Ok(new { message = "Tính FMP thành công!" });
+                await _calculateTableServices.CalculateTableByFormulaAsync(new CalculationRequest
+                {
+                    OutputTable = "FMP",
+                    OutputLabel = "FMP",
+                    Formula = "FMP = SMP + CAN",
+                    SourceTables = new[] { "NhapgiaNM" }
+                });
+
+                return Ok(" Đã tính xong FMP");
             }
             catch (Exception ex)
             {

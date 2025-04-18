@@ -350,7 +350,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             checkResultTableCmd.Parameters.AddWithValue("@tableName", resultTableName);
             var resultExists = (int)await checkResultTableCmd.ExecuteScalarAsync();
             if (resultExists == 1)
-                throw new Exception($"❌ Bảng '{resultTableName}' đã tồn tại. Pm đã được tính trước đó.");
+                throw new Exception($" Bảng '{resultTableName}' đã tồn tại. Pm đã được tính trước đó.");
 
             // Load dữ liệu từ hai bảng
             var dfFMP = new DataTable();
@@ -372,7 +372,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             {
                 var newRow = diffTable.NewRow();
                 newRow["Ngày"] = dfFMP.Rows[i]["Ngày"];
-                newRow["Giá"] = "SaiKhac";
+                newRow["Giá"] = "PM";
 
                 foreach (DataColumn col in dfFMP.Columns)
                 {
