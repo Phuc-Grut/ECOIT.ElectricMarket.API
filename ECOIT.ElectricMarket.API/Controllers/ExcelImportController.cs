@@ -167,5 +167,25 @@ namespace ECOIT.ElectricMarket.API.Controllers
                 return BadRequest(new { error = ex.Message });
             };
         }
+
+        [HttpPost("caculate-ccfd")]
+        public async Task<IActionResult> CalculateCCFD()
+        {
+            try
+            {
+                await _calculateTableServices.CalculateCCFDTableAsync(new CalculationRequest
+                {
+                    OutputTable = "CCFD_PM4",
+                    Formula = "CCFD = QC * (PC - FMP) / 1000",
+                    SourceTables = new[] { "QC_cfd_pm4", "PC_PM4", "FMP" }
+                });
+
+                return Ok(" Đã tính xong FMP");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
     }
 }

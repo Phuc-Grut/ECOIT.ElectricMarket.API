@@ -20,6 +20,107 @@ namespace ECOIT.ElectricMarket.Application.Services
         {
             _connectionString = config.GetConnectionString("DefaultConnection");
         }
+
+        public async Task CalculateCCFDTableAsync(CalculationRequest request)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            //if (request.SourceTables.Count != 3)
+            //    throw new Exception("Cần đúng 3 bảng: QC, PC và FMP.");
+
+            var tableQC = request.SourceTables[0];
+            var tablePC = request.SourceTables[1];
+            var tableFMP = request.SourceTables[2];
+
+            var safeTableName = Regex.Replace(request.OutputTable, "\\W+", "");
+            var checkCmd = new SqlCommand("IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
+            checkCmd.Parameters.AddWithValue("@tableName", safeTableName);
+            var exists = (int)await checkCmd.ExecuteScalarAsync();
+            if (exists == 1)
+                throw new Exception($"Bảng '{safeTableName}' đã tồn tại.");
+
+            var dtQC = new DataTable();
+            using (var cmd = new SqlCommand($"Select * From [{tableQC}]", conn))
+            using (var adapter = new SqlDataAdapter(cmd))
+            {
+                adapter.Fill(dtQC);
+            }
+
+            var dtPC = new DataTable();
+            using (var cmd = new SqlCommand($"Select * From [{tablePC}]", conn))
+            using (var adapter = new SqlDataAdapter(cmd))
+            {
+                adapter.Fill(dtPC);
+            }
+
+            var dtFMP = new DataTable();
+            using (var cmd = new SqlCommand($"Select * From [{tableFMP}]", conn))
+            using (var adapter = new SqlDataAdapter(cmd))
+            {
+                adapter.Fill(dtFMP);
+            }
+
+            var timeCols = dtFMP.Columns.Cast<DataColumn>()
+                .Select(c => c.ColumnName)
+                .Where(c => c != "Ngày" && c != "Giá")
+                .ToList();
+
+            var resultTable = new DataTable();
+            resultTable.Columns.Add("Ngày");
+            foreach (var col in timeCols)
+                resultTable.Columns.Add(col);
+
+            var days = dtQC.AsEnumerable()
+                .Select(r => r["Ngày"].ToString())
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Distinct();
+
+            foreach (var day in days)
+            {
+                var rowQC = dtQC.AsEnumerable().FirstOrDefault(r => r["Ngày"].ToString() == day);
+                var rowPC = dtPC.AsEnumerable().FirstOrDefault(r => r["Ngày"].ToString() == day);
+                var rowFMP = dtFMP.AsEnumerable().FirstOrDefault(r => r["Ngày"].ToString() == day && r["Giá"].ToString() == "FMP");
+
+                if (rowQC == null || rowPC == null || rowFMP == null)
+                    continue;
+
+                var newRow = resultTable.NewRow();
+                newRow["Ngày"] = day;
+
+                foreach (var col in timeCols)
+                {
+                    double.TryParse(NormalizeNumber(rowQC[col]?.ToString()), NumberStyles.Any, CultureInfo.InvariantCulture, out double qc);
+                    double.TryParse(NormalizeNumber(rowPC[col]?.ToString()), NumberStyles.Any, CultureInfo.InvariantCulture, out double pc);
+                    double.TryParse(NormalizeNumber(rowFMP[col]?.ToString()), NumberStyles.Any, CultureInfo.InvariantCulture, out double fmp);
+
+                    var ccfd = Math.Round(qc * (pc - fmp) / 1000.6, 2);
+                    newRow[col] = ccfd.ToString("0.00", CultureInfo.InvariantCulture);
+
+                }
+
+                resultTable.Rows.Add(newRow);
+            }
+
+            var columnsSql = resultTable.Columns
+                .Cast<DataColumn>()
+                .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
+            var createSql = $"CREATE TABLE [{safeTableName}] ({string.Join(", ", columnsSql)})";
+            using var createCmd = new SqlCommand(createSql, conn);
+            await createCmd.ExecuteNonQueryAsync();
+
+            using var bulkCopy = new SqlBulkCopy(conn)
+            {
+                DestinationTableName = safeTableName
+            };
+            foreach (DataColumn col in resultTable.Columns)
+            {
+                bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+            }
+            await bulkCopy.WriteToServerAsync(resultTable);
+
+        }
+
         public async Task CalculateTableByFormulaAsync(CalculationRequest request)
         {
             using var conn = new SqlConnection(_connectionString);
@@ -125,12 +226,25 @@ namespace ECOIT.ElectricMarket.Application.Services
         private string NormalizeNumber(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return "0";
-            raw = raw.Trim();
-            if (raw.Contains(" ") && raw.Contains("."))
-                raw = raw.Replace(" ", "").Replace(",", "").Replace(".", ",");
-            else if (!raw.Contains(",") && raw.Contains("."))
-                raw = raw.Replace(".", ",");
-            return raw.Replace(",", ".");
+            raw = raw.Replace(" ", "").Trim();
+
+            // Nếu số có 2 dấu phân cách → xử lý theo kiểu Việt
+            if (Regex.IsMatch(raw, @"^\d{1,3}(\.\d{3})+,\d+$"))
+            {
+                // Ví dụ: 1.234.567,89 → 1234567.89
+                raw = raw.Replace(".", "").Replace(",", ".");
+            }
+            else if (Regex.IsMatch(raw, @"^\d{1,3}(,\d{3})+\.\d+$"))
+            {
+                // Ví dụ: 1,234,567.89 (kiểu US) → 1234567.89
+                raw = raw.Replace(",", "");
+            }
+            else
+            {
+                raw = raw.Replace(",", ".");
+            }
+
+            return raw;
         }
 
     }

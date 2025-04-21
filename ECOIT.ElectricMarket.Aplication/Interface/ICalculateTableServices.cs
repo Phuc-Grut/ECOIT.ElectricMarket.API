@@ -10,5 +10,6 @@ namespace ECOIT.ElectricMarket.Application.Interface
     public interface ICalculateTableServices
     {
         Task CalculateTableByFormulaAsync(CalculationRequest request);
+        Task CalculateCCFDTableAsync(CalculationRequest request);
     }
 }
