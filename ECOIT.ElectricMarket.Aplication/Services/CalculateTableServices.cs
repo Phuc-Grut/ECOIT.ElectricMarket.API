@@ -26,9 +26,6 @@ namespace ECOIT.ElectricMarket.Application.Services
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            //if (request.SourceTables.Count != 3)
-            //    throw new Exception("Cần đúng 3 bảng: QC, PC và FMP.");
-
             var tableQC = request.SourceTables[0];
             var tablePC = request.SourceTables[1];
             var tableFMP = request.SourceTables[2];
