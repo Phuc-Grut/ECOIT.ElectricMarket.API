@@ -33,6 +33,13 @@ namespace ECOIT.ElectricMarket.Application.Services
             var tablePC = request.SourceTables[1];
             var tableFMP = request.SourceTables[2];
 
+            if (!request.SourceTables[0].StartsWith("QC") ||
+                !request.SourceTables[1].StartsWith("PC") ||
+                request.SourceTables[2] != "FMP")
+            {
+                throw new Exception("Vui lòng chọn QC rồi PC rồi FMP");
+            }
+
             var safeTableName = Regex.Replace(request.OutputTable, "\\W+", "");
             var checkCmd = new SqlCommand("IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
             checkCmd.Parameters.AddWithValue("@tableName", safeTableName);

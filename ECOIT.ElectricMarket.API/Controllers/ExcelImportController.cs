@@ -168,24 +168,106 @@ namespace ECOIT.ElectricMarket.API.Controllers
             };
         }
 
-        [HttpPost("caculate-ccfd")]
-        public async Task<IActionResult> CalculateCCFD()
+        //[HttpPost("caculate-ccfd-pm1")]
+        //public async Task<IActionResult> CalculateCCFDPM1()
+        //{
+        //    try
+        //    {
+        //        await _calculateTableServices.CalculateCCFDTableAsync(new CalculationRequest
+        //        {
+        //            OutputTable = "CCFD_PM1",
+        //            Formula = "CCFD = QC * (PC - FMP) / 1000",
+        //            SourceTables = new[] { "QC_PM1", "PC_PM1", "FMP" }
+        //        });
+
+        //        return Ok(" Đã tính xong CCFD");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(new { error = ex.Message });
+        //    }
+        //}
+
+        //[HttpPost("caculate-ccfd-pm4")]
+        //public async Task<IActionResult> CalculateCCFDPM4()
+        //{
+        //    try
+        //    {
+        //        await _calculateTableServices.CalculateCCFDTableAsync(new CalculationRequest
+        //        {
+        //            OutputTable = "CCFD_PM4",
+        //            Formula = "CCFD = QC * (PC - FMP) / 1000",
+        //            SourceTables = new[] { "QC_PM4", "PC_PM4", "FMP" }
+        //        });
+
+        //        return Ok(" Đã tính xong CCFD");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(new { error = ex.Message });
+        //    }
+        //}
+
+        //[HttpPost("caculate-ccfd-tb1")]
+        //public async Task<IActionResult> CalculateCCFDTB1()
+        //{
+        //    try
+        //    {
+        //        await _calculateTableServices.CalculateCCFDTableAsync(new CalculationRequest
+        //        {
+        //            OutputTable = "CCFD_TB1",
+        //            Formula = "CCFD = QC * (PC - FMP) / 1000",
+        //            SourceTables = new[] { "QC_TB1", "PC_TB1", "FMP" }
+        //        });
+
+        //        return Ok(" Đã tính xong CCFD");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(new { error = ex.Message });
+        //    }
+        //}
+        //[HttpPost("caculate-ccfd-dh3")]
+        //public async Task<IActionResult> CalculateCCFDDH3()
+        //{
+        //    try
+        //    {
+        //        await _calculateTableServices.CalculateCCFDTableAsync(new CalculationRequest
+        //        {
+        //            OutputTable = "CCFD_DH3",
+        //            Formula = "CCFD = QC * (PC - FMP) / 1000",
+        //            SourceTables = new[] { "QC_DH3", "PC_DH3", "FMP" }
+        //        });
+
+        //        return Ok(" Đã tính xong CCFD");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(new { error = ex.Message });
+        //    }
+        //}
+
+        [HttpPost("caculate-ccfd/{type}")]
+        public async Task<IActionResult> CalculateCCFD(string type)
         {
             try
             {
+                var upperType = type.ToUpper();
+
                 await _calculateTableServices.CalculateCCFDTableAsync(new CalculationRequest
                 {
-                    OutputTable = "CCFD_PM4",
+                    OutputTable = $"CCFD_{upperType}",
                     Formula = "CCFD = QC * (PC - FMP) / 1000",
-                    SourceTables = new[] { "QC_cfd_pm4", "PC_PM4", "FMP" }
+                    SourceTables = new[] { $"QC_{upperType}", $"PC_{upperType}", "FMP" }
                 });
 
-                return Ok(" Đã tính xong FMP");
+                return Ok($"Đã tính xong CCFD cho {upperType}");
             }
             catch (Exception ex)
             {
                 return BadRequest(new { error = ex.Message });
             }
         }
+
     }
 }
