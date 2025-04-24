@@ -269,18 +269,25 @@ namespace ECOIT.ElectricMarket.API.Controllers
             }
         }
 
-        [HttpPost("calculate-san-luong-hop-dong")]
-        public async Task<IActionResult> CalculateSanLuong([FromQuery] string outputTable = "SanLuongHopDong")
-        {
-            await _calculateTableServices.CalculateSanLuongHopDongAsync(outputTable);
-            return Ok($"Đã tạo bảng '{outputTable}' thành công.");
-        }
+        //[HttpPost("calculate-san-luong-hop-dong")]
+        //public async Task<IActionResult> CalculateSanLuong([FromQuery] string outputTable = "SanLuongHopDong")
+        //{
+        //    await _calculateTableServices.CalculateSanLuongHopDongAsync(outputTable);
+        //    return Ok($"Đã tạo bảng '{outputTable}' thành công.");
+        //}
 
-        [HttpPost("calculate-chi-phi")]
-        public async Task<IActionResult> CalculateChiPhi([FromQuery] string outputTable = "ChiPhi")
+        //[HttpPost("calculate-chi-phi")]
+        //public async Task<IActionResult> CalculateChiPhi([FromQuery] string outputTable = "ChiPhi")
+        //{
+        //    await _calculateTableServices.CalculateChiPhiAsync(outputTable);
+        //    return Ok($"Đã tạo bảng '{outputTable}' thành công.");
+        //}
+
+        [HttpPost("calculate-tonghop")]
+        public async Task<IActionResult> CalculateTongHop()
         {
-            await _calculateTableServices.CalculateChiPhiAsync(outputTable);
-            return Ok($"Đã tạo bảng '{outputTable}' thành công.");
+            await _calculateTableServices.CalculateTongHopAsync();
+            return Ok();
         }
     }
 }

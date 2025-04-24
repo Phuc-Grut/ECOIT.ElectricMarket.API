@@ -11,7 +11,8 @@ namespace ECOIT.ElectricMarket.Application.Interface
     {
         Task CalculateTableByFormulaAsync(CalculationRequest request);
         Task CalculateCCFDTableAsync(CalculationRequest request);
-        Task CalculateSanLuongHopDongAsync(string outputTable);
-        Task CalculateChiPhiAsync(string outputTable);
+        //Task CalculateSanLuongHopDongAsync(string outputTable);
+        //Task CalculateChiPhiAsync(string outputTable);
+        Task CalculateTongHopAsync();
     }
 }

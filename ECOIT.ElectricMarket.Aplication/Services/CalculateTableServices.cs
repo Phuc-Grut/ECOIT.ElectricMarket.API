@@ -245,238 +245,376 @@ namespace ECOIT.ElectricMarket.Application.Services
             return raw;
         }
 
-        public async Task CalculateSanLuongHopDongAsync(string outputTable)
+        //public async Task CalculateSanLuongHopDongAsync(string outputTable)
+        //{
+        //    var sourceTables = new[] { "QC_PM1", "QC_PM4", "QC_TB1",  "QC_VT44MR", "QC_DH3_MR", };
+        //    var safeTableName = Regex.Replace(outputTable, "\\W+", "");
+
+        //    using var conn = new SqlConnection(_connectionString);
+        //    await conn.OpenAsync();
+
+        //    // 1. Kiểm tra bảng đích đã tồn tại chưa
+        //    var checkCmd = new SqlCommand("IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
+        //    checkCmd.Parameters.AddWithValue("@tableName", safeTableName);
+        //    var exists = (int)await checkCmd.ExecuteScalarAsync();
+        //    if (exists == 1)
+        //        throw new Exception($"Bảng '{safeTableName}' đã tồn tại.");
+
+        //    // 2. Tải dữ liệu từ các bảng nguồn
+        //    var data = new Dictionary<string, DataTable>();
+        //    foreach (var tbl in sourceTables)
+        //    {
+        //        var dt = new DataTable();
+        //        using var cmd = new SqlCommand($"SELECT * FROM [{tbl}]", conn);
+        //        using var adapter = new SqlDataAdapter(cmd);
+        //        adapter.Fill(dt);
+        //        data[tbl] = dt;
+        //    }
+
+        //    // 3. Tạo bảng kết quả
+        //    var resultTable = new DataTable();
+        //    resultTable.Columns.Add("Ngày", typeof(string));
+        //    resultTable.Columns.Add("PM1", typeof(string));
+        //    resultTable.Columns.Add("PM4", typeof(string));
+        //    resultTable.Columns.Add("TB1", typeof(string));
+        //    resultTable.Columns.Add("VT44MR", typeof(string));
+        //    resultTable.Columns.Add("DH3_MR", typeof(string));
+        //    resultTable.Columns.Add("SanLuongHopDong", typeof(string));
+
+        //    var allDays = data.SelectMany(d => d.Value.AsEnumerable().Select(r => r["Ngày"].ToString())).Distinct();
+
+        //    foreach (var day in allDays)
+        //    {
+        //        var newRow = resultTable.NewRow();
+        //        newRow["Ngày"] = day;
+
+        //        double pm1 = 0, pm4 = 0, tb1 = 0, dh3 = 0, vt = 0;
+
+        //        foreach (var kv in data)
+        //        {
+        //            var row = kv.Value.AsEnumerable().FirstOrDefault(r => r["Ngày"].ToString() == day);
+        //            double.TryParse(row?["Tổng"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double val);
+        //            double valX1000 = val * 1000;
+
+        //            if (kv.Key.Contains("PM1", StringComparison.OrdinalIgnoreCase)) pm1 = valX1000;
+        //            if (kv.Key.Contains("PM4", StringComparison.OrdinalIgnoreCase)) pm4 = valX1000;
+        //            if (kv.Key.Contains("TB1", StringComparison.OrdinalIgnoreCase)) tb1 = valX1000;
+        //            if (kv.Key.Contains("DH3", StringComparison.OrdinalIgnoreCase)) dh3 = valX1000;
+        //            if (kv.Key.Contains("VT", StringComparison.OrdinalIgnoreCase)) vt = valX1000;
+        //        }
+
+        //        newRow["PM1"] = pm1.ToString("#,0", CultureInfo.InvariantCulture);
+        //        newRow["PM4"] = pm4.ToString("#,0", CultureInfo.InvariantCulture);
+        //        newRow["TB1"] = tb1.ToString("#,0", CultureInfo.InvariantCulture);
+        //        newRow["VT44MR"] = vt.ToString("#,0", CultureInfo.InvariantCulture);
+        //        newRow["DH3_MR"] = dh3.ToString("#,0", CultureInfo.InvariantCulture);
+        //        newRow["SanLuongHopDong"] = (pm1 + pm4 + tb1 + dh3 + vt).ToString("#,0", CultureInfo.InvariantCulture);
+
+        //        resultTable.Rows.Add(newRow);
+        //    }
+
+        //    var totalRow = resultTable.NewRow();
+        //    totalRow["Ngày"] = "Tổng";
+
+        //    double totalPM1 = 0, totalPM4 = 0, totalTB1 = 0, totalDH3 = 0, totalVT = 0, totalSLHD = 0;
+
+        //    foreach (DataRow row in resultTable.Rows)
+        //    {
+        //        double.TryParse(row["PM1"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vPM1);
+        //        double.TryParse(row["PM4"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vPM4);
+        //        double.TryParse(row["TB1"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vTB1);
+
+        //        double.TryParse(row["VT44MR"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vVT);
+        //        double.TryParse(row["DH3_MR"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vDH3);
+        //        double.TryParse(row["SanLuongHopDong"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vSLHD);
+
+        //        totalPM1 += vPM1;
+        //        totalPM4 += vPM4;
+        //        totalTB1 += vTB1;
+        //        totalVT += vVT;
+        //        totalDH3 += vDH3;
+        //        totalSLHD += vSLHD;
+        //    }
+
+        //    totalRow["PM1"] = totalPM1.ToString("#,0", CultureInfo.InvariantCulture);
+        //    totalRow["PM4"] = totalPM4.ToString("#,0", CultureInfo.InvariantCulture);
+        //    totalRow["TB1"] = totalTB1.ToString("#,0", CultureInfo.InvariantCulture);
+
+        //    totalRow["VT44MR"] = totalVT.ToString("#,0", CultureInfo.InvariantCulture);
+        //    totalRow["DH3_MR"] = totalDH3.ToString("#,0", CultureInfo.InvariantCulture);
+        //    totalRow["SanLuongHopDong"] = totalSLHD.ToString("#,0", CultureInfo.InvariantCulture);
+
+        //    resultTable.Rows.Add(totalRow);
+
+
+        //    // 4. Tạo bảng trong SQL Server
+        //    var columnDefs = resultTable.Columns.Cast<DataColumn>()
+        //        .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
+        //    var createSql = $"CREATE TABLE [{safeTableName}] ({string.Join(", ", columnDefs)})";
+        //    using var createCmd = new SqlCommand(createSql, conn);
+        //    await createCmd.ExecuteNonQueryAsync();
+
+        //    // 5. Ghi dữ liệu vào bảng
+        //    using var bulkCopy = new SqlBulkCopy(conn) { DestinationTableName = safeTableName };
+        //    foreach (DataColumn col in resultTable.Columns)
+        //        bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+
+        //    await bulkCopy.WriteToServerAsync(resultTable);
+        //}
+
+        //public async Task CalculateChiPhiAsync(string outputTable)
+        //{
+        //    var sourceTables = new[] { "CCFD_PM1", "CCFD_PM4", "CCFD_TB1", "CCFD_VT44MR", "CCFD_DH3_MR", };
+        //    var safeTableName = Regex.Replace(outputTable, "\\W+", "");
+
+        //    using var conn = new SqlConnection(_connectionString);
+        //    await conn.OpenAsync();
+
+        //    // 1. Kiểm tra bảng đích đã tồn tại chưa
+        //    var checkCmd = new SqlCommand("IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
+        //    checkCmd.Parameters.AddWithValue("@tableName", safeTableName);
+        //    var exists = (int)await checkCmd.ExecuteScalarAsync();
+        //    if (exists == 1)
+        //        throw new Exception($"Bảng '{safeTableName}' đã tồn tại.");
+
+        //    // 2. Tải dữ liệu từ các bảng nguồn
+        //    var data = new Dictionary<string, DataTable>();
+        //    foreach (var tbl in sourceTables)
+        //    {
+        //        var dt = new DataTable();
+        //        using var cmd = new SqlCommand($"SELECT * FROM [{tbl}]", conn);
+        //        using var adapter = new SqlDataAdapter(cmd);
+        //        adapter.Fill(dt);
+        //        data[tbl] = dt;
+        //    }
+
+        //    // 3. Tạo bảng kết quả
+        //    var resultTable = new DataTable();
+        //    resultTable.Columns.Add("Ngày", typeof(string));
+        //    resultTable.Columns.Add("PM1", typeof(string));
+        //    resultTable.Columns.Add("PM4", typeof(string));
+        //    resultTable.Columns.Add("TB1", typeof(string));
+        //    resultTable.Columns.Add("VT44MR", typeof(string));
+        //    resultTable.Columns.Add("DH3_MR", typeof(string));
+        //    resultTable.Columns.Add("ChiPhi", typeof(string));
+
+        //    var allDays = data.SelectMany(d => d.Value.AsEnumerable().Select(r => r["Ngày"].ToString())).Distinct();
+
+        //    foreach (var day in allDays)
+        //    {
+        //        var newRow = resultTable.NewRow();
+        //        newRow["Ngày"] = day;
+
+        //        double pm1 = 0, pm4 = 0, tb1 = 0, dh3 = 0, vt = 0;
+
+        //        foreach (var kv in data)
+        //        {
+        //            var row = kv.Value.AsEnumerable().FirstOrDefault(r => r["Ngày"].ToString() == day);
+        //            double.TryParse(row?["Tổng"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double val);
+        //            double valX10Mu6 = val * Math.Pow(10, 6);
+
+        //            if (kv.Key.Contains("PM1", StringComparison.OrdinalIgnoreCase)) pm1 = valX10Mu6;
+        //            if (kv.Key.Contains("PM4", StringComparison.OrdinalIgnoreCase)) pm4 = valX10Mu6;
+        //            if (kv.Key.Contains("TB1", StringComparison.OrdinalIgnoreCase)) tb1 = valX10Mu6;
+        //            if (kv.Key.Contains("DH3", StringComparison.OrdinalIgnoreCase)) dh3 = valX10Mu6;
+        //            if (kv.Key.Contains("VT", StringComparison.OrdinalIgnoreCase)) vt = valX10Mu6;
+        //        }
+
+        //        newRow["PM1"] = pm1.ToString("#,0", CultureInfo.InvariantCulture);
+        //        newRow["PM4"] = pm4.ToString("#,0", CultureInfo.InvariantCulture);
+        //        newRow["TB1"] = tb1.ToString("#,0", CultureInfo.InvariantCulture);
+        //        newRow["VT44MR"] = vt.ToString("#,0", CultureInfo.InvariantCulture);
+        //        newRow["DH3_MR"] = dh3.ToString("#,0", CultureInfo.InvariantCulture);
+        //        newRow["ChiPhi"] = (pm1 + pm4 + tb1 + dh3 + vt).ToString("#,0", CultureInfo.InvariantCulture);
+
+        //        resultTable.Rows.Add(newRow);
+        //    }
+
+        //    var totalRow = resultTable.NewRow();
+        //    totalRow["Ngày"] = "Tổng";
+
+        //    double totalPM1 = 0, totalPM4 = 0, totalTB1 = 0, totalDH3 = 0, totalVT = 0, totalSLHD = 0;
+
+        //    foreach (DataRow row in resultTable.Rows)
+        //    {
+        //        double.TryParse(row["PM1"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vPM1);
+        //        double.TryParse(row["PM4"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vPM4);
+        //        double.TryParse(row["TB1"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vTB1);
+
+        //        double.TryParse(row["VT44MR"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vVT);
+        //        double.TryParse(row["DH3_MR"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vDH3);
+        //        double.TryParse(row["ChiPhi"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vSLHD);
+
+        //        totalPM1 += vPM1;
+        //        totalPM4 += vPM4;
+        //        totalTB1 += vTB1;
+        //        totalVT += vVT;
+        //        totalDH3 += vDH3;
+        //        totalSLHD += vSLHD;
+        //    }
+
+        //    totalRow["PM1"] = totalPM1.ToString("#,0", CultureInfo.InvariantCulture);
+        //    totalRow["PM4"] = totalPM4.ToString("#,0", CultureInfo.InvariantCulture);
+        //    totalRow["TB1"] = totalTB1.ToString("#,0", CultureInfo.InvariantCulture);
+
+        //    totalRow["VT44MR"] = totalVT.ToString("#,0", CultureInfo.InvariantCulture);
+        //    totalRow["DH3_MR"] = totalDH3.ToString("#,0", CultureInfo.InvariantCulture);
+        //    totalRow["ChiPhi"] = totalSLHD.ToString("#,0", CultureInfo.InvariantCulture);
+
+        //    resultTable.Rows.Add(totalRow);
+
+
+        //    // 4. Tạo bảng trong SQL Server
+        //    var columnDefs = resultTable.Columns.Cast<DataColumn>()
+        //        .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
+        //    var createSql = $"CREATE TABLE [{safeTableName}] ({string.Join(", ", columnDefs)})";
+        //    using var createCmd = new SqlCommand(createSql, conn);
+        //    await createCmd.ExecuteNonQueryAsync();
+
+        //    // 5. Ghi dữ liệu vào bảng
+        //    using var bulkCopy = new SqlBulkCopy(conn) { DestinationTableName = safeTableName };
+        //    foreach (DataColumn col in resultTable.Columns)
+        //        bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+
+        //    await bulkCopy.WriteToServerAsync(resultTable);
+        //}
+
+        public async Task CalculateTongHopAsync()
         {
-            var sourceTables = new[] { "QC_PM1", "QC_PM4", "QC_TB1",  "QC_VT44MR", "QC_DH3_MR", };
-            var safeTableName = Regex.Replace(outputTable, "\\W+", "");
+            var sanLuongTables = new[] { "QC_PM1", "QC_PM4", "QC_TB1", "QC_VT44MR", "QC_DH3_MR" };
+            var chiPhiTables = new[] { "CCFD_PM1", "CCFD_PM4", "CCFD_TB1", "CCFD_VT44MR", "CCFD_DH3_MR" };
 
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            // 1. Kiểm tra bảng đích đã tồn tại chưa
-            var checkCmd = new SqlCommand("IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
-            checkCmd.Parameters.AddWithValue("@tableName", safeTableName);
-            var exists = (int)await checkCmd.ExecuteScalarAsync();
-            if (exists == 1)
-                throw new Exception($"Bảng '{safeTableName}' đã tồn tại.");
-
-            // 2. Tải dữ liệu từ các bảng nguồn
-            var data = new Dictionary<string, DataTable>();
-            foreach (var tbl in sourceTables)
+            async Task<Dictionary<string, DataTable>> LoadData(string[] tables)
             {
-                var dt = new DataTable();
-                using var cmd = new SqlCommand($"SELECT * FROM [{tbl}]", conn);
-                using var adapter = new SqlDataAdapter(cmd);
-                adapter.Fill(dt);
-                data[tbl] = dt;
+                var data = new Dictionary<string, DataTable>();
+                foreach (var tbl in tables)
+                {
+                    var dt = new DataTable();
+                    using var cmd = new SqlCommand($"SELECT * FROM [{tbl}]", conn);
+                    using var adapter = new SqlDataAdapter(cmd);
+                    adapter.Fill(dt);
+                    data[tbl] = dt;
+                }
+                return data;
             }
 
-            // 3. Tạo bảng kết quả
+            var dataSL = await LoadData(sanLuongTables);
+            var dataCP = await LoadData(chiPhiTables);
+
+            var allDays = dataSL
+                .SelectMany(d => d.Value.AsEnumerable().Select(r => r["Ngày"].ToString()))
+                .Concat(dataCP.SelectMany(d => d.Value.AsEnumerable().Select(r => r["Ngày"].ToString())))
+                .Distinct();
+
             var resultTable = new DataTable();
             resultTable.Columns.Add("Ngày", typeof(string));
-            resultTable.Columns.Add("PM1", typeof(string));
-            resultTable.Columns.Add("PM4", typeof(string));
-            resultTable.Columns.Add("TB1", typeof(string));
-            resultTable.Columns.Add("VT44MR", typeof(string));
-            resultTable.Columns.Add("DH3_MR", typeof(string));
-            resultTable.Columns.Add("SanLuongHopDong", typeof(string));
 
-            var allDays = data.SelectMany(d => d.Value.AsEnumerable().Select(r => r["Ngày"].ToString())).Distinct();
+            var prefixs = new[] { "PM1", "PM4", "TB1", "VT44MR", "DH3_MR" };
+            foreach (var p in prefixs)
+            {
+                resultTable.Columns.Add(p + "_SL", typeof(string));
+                resultTable.Columns.Add(p + "_CP", typeof(string));
+            }
+            resultTable.Columns.Add("Tong_SL", typeof(string));
+            resultTable.Columns.Add("Tong_CP", typeof(string));
 
             foreach (var day in allDays)
             {
-                var newRow = resultTable.NewRow();
-                newRow["Ngày"] = day;
+                var row = resultTable.NewRow();
+                row["Ngày"] = day;
 
-                double pm1 = 0, pm4 = 0, tb1 = 0, dh3 = 0, vt = 0;
+                double tongSL = 0, tongCP = 0;
 
-                foreach (var kv in data)
+                foreach (var p in prefixs)
                 {
-                    var row = kv.Value.AsEnumerable().FirstOrDefault(r => r["Ngày"].ToString() == day);
-                    double.TryParse(row?["Tổng"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double val);
-                    double valX1000 = val * 1000;
+                    double sl = 0, cp = 0;
 
-                    if (kv.Key.Contains("PM1", StringComparison.OrdinalIgnoreCase)) pm1 = valX1000;
-                    if (kv.Key.Contains("PM4", StringComparison.OrdinalIgnoreCase)) pm4 = valX1000;
-                    if (kv.Key.Contains("TB1", StringComparison.OrdinalIgnoreCase)) tb1 = valX1000;
-                    if (kv.Key.Contains("DH3", StringComparison.OrdinalIgnoreCase)) dh3 = valX1000;
-                    if (kv.Key.Contains("VT", StringComparison.OrdinalIgnoreCase)) vt = valX1000;
+                    var keySL = dataSL.Keys.FirstOrDefault(k => k.Contains(p, StringComparison.OrdinalIgnoreCase));
+                    var keyCP = dataCP.Keys.FirstOrDefault(k => k.Contains(p, StringComparison.OrdinalIgnoreCase));
+
+                    if (keySL != null)
+                    {
+                        var r = dataSL[keySL].AsEnumerable().FirstOrDefault(r => r["Ngày"].ToString() == day);
+                        double.TryParse(r?["Tổng"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out sl);
+                        sl *= 1000;
+                    }
+
+                    if (keyCP != null)
+                    {
+                        var r = dataCP[keyCP].AsEnumerable().FirstOrDefault(r => r["Ngày"].ToString() == day);
+                        double.TryParse(r?["Tổng"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out cp);
+                        cp *= 1_000_000;
+                    }
+
+                    row[p + "_SL"] = sl.ToString("#,0", CultureInfo.InvariantCulture);
+                    row[p + "_CP"] = cp.ToString("#,0", CultureInfo.InvariantCulture);
+                    tongSL += sl;
+                    tongCP += cp;
                 }
 
-                newRow["PM1"] = pm1.ToString("#,0", CultureInfo.InvariantCulture);
-                newRow["PM4"] = pm4.ToString("#,0", CultureInfo.InvariantCulture);
-                newRow["TB1"] = tb1.ToString("#,0", CultureInfo.InvariantCulture);
-                newRow["VT44MR"] = vt.ToString("#,0", CultureInfo.InvariantCulture);
-                newRow["DH3_MR"] = dh3.ToString("#,0", CultureInfo.InvariantCulture);
-                newRow["SanLuongHopDong"] = (pm1 + pm4 + tb1 + dh3 + vt).ToString("#,0", CultureInfo.InvariantCulture);
+                row["Tong_SL"] = tongSL.ToString("#,0", CultureInfo.InvariantCulture);
+                row["Tong_CP"] = tongCP.ToString("#,0", CultureInfo.InvariantCulture);
 
-                resultTable.Rows.Add(newRow);
+                resultTable.Rows.Add(row);
             }
 
+            // Tính dòng tổng
             var totalRow = resultTable.NewRow();
             totalRow["Ngày"] = "Tổng";
 
-            double totalPM1 = 0, totalPM4 = 0, totalTB1 = 0, totalDH3 = 0, totalVT = 0, totalSLHD = 0;
-
-            foreach (DataRow row in resultTable.Rows)
-            {
-                double.TryParse(row["PM1"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vPM1);
-                double.TryParse(row["PM4"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vPM4);
-                double.TryParse(row["TB1"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vTB1);
-
-                double.TryParse(row["VT44MR"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vVT);
-                double.TryParse(row["DH3_MR"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vDH3);
-                double.TryParse(row["SanLuongHopDong"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vSLHD);
-
-                totalPM1 += vPM1;
-                totalPM4 += vPM4;
-                totalTB1 += vTB1;
-                totalVT += vVT;
-                totalDH3 += vDH3;
-                totalSLHD += vSLHD;
-            }
-
-            totalRow["PM1"] = totalPM1.ToString("#,0", CultureInfo.InvariantCulture);
-            totalRow["PM4"] = totalPM4.ToString("#,0", CultureInfo.InvariantCulture);
-            totalRow["TB1"] = totalTB1.ToString("#,0", CultureInfo.InvariantCulture);
-
-            totalRow["VT44MR"] = totalVT.ToString("#,0", CultureInfo.InvariantCulture);
-            totalRow["DH3_MR"] = totalDH3.ToString("#,0", CultureInfo.InvariantCulture);
-            totalRow["SanLuongHopDong"] = totalSLHD.ToString("#,0", CultureInfo.InvariantCulture);
-
-            resultTable.Rows.Add(totalRow);
-
-
-            // 4. Tạo bảng trong SQL Server
-            var columnDefs = resultTable.Columns.Cast<DataColumn>()
-                .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
-            var createSql = $"CREATE TABLE [{safeTableName}] ({string.Join(", ", columnDefs)})";
-            using var createCmd = new SqlCommand(createSql, conn);
-            await createCmd.ExecuteNonQueryAsync();
-
-            // 5. Ghi dữ liệu vào bảng
-            using var bulkCopy = new SqlBulkCopy(conn) { DestinationTableName = safeTableName };
             foreach (DataColumn col in resultTable.Columns)
-                bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
-
-            await bulkCopy.WriteToServerAsync(resultTable);
-        }
-
-        public async Task CalculateChiPhiAsync(string outputTable)
-        {
-            var sourceTables = new[] { "CCFD_PM1", "CCFD_PM4", "CCFD_TB1", "CCFD_VT44MR", "CCFD_DH3_MR", };
-            var safeTableName = Regex.Replace(outputTable, "\\W+", "");
-
-            using var conn = new SqlConnection(_connectionString);
-            await conn.OpenAsync();
-
-            // 1. Kiểm tra bảng đích đã tồn tại chưa
-            var checkCmd = new SqlCommand("IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
-            checkCmd.Parameters.AddWithValue("@tableName", safeTableName);
-            var exists = (int)await checkCmd.ExecuteScalarAsync();
-            if (exists == 1)
-                throw new Exception($"Bảng '{safeTableName}' đã tồn tại.");
-
-            // 2. Tải dữ liệu từ các bảng nguồn
-            var data = new Dictionary<string, DataTable>();
-            foreach (var tbl in sourceTables)
             {
-                var dt = new DataTable();
-                using var cmd = new SqlCommand($"SELECT * FROM [{tbl}]", conn);
-                using var adapter = new SqlDataAdapter(cmd);
-                adapter.Fill(dt);
-                data[tbl] = dt;
-            }
-
-            // 3. Tạo bảng kết quả
-            var resultTable = new DataTable();
-            resultTable.Columns.Add("Ngày", typeof(string));
-            resultTable.Columns.Add("PM1", typeof(string));
-            resultTable.Columns.Add("PM4", typeof(string));
-            resultTable.Columns.Add("TB1", typeof(string));
-            resultTable.Columns.Add("VT44MR", typeof(string));
-            resultTable.Columns.Add("DH3_MR", typeof(string));
-            resultTable.Columns.Add("ChiPhi", typeof(string));
-
-            var allDays = data.SelectMany(d => d.Value.AsEnumerable().Select(r => r["Ngày"].ToString())).Distinct();
-
-            foreach (var day in allDays)
-            {
-                var newRow = resultTable.NewRow();
-                newRow["Ngày"] = day;
-
-                double pm1 = 0, pm4 = 0, tb1 = 0, dh3 = 0, vt = 0;
-
-                foreach (var kv in data)
+                if (col.ColumnName != "Ngày")
                 {
-                    var row = kv.Value.AsEnumerable().FirstOrDefault(r => r["Ngày"].ToString() == day);
-                    double.TryParse(row?["Tổng"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double val);
-                    double valX10Mu6 = val * Math.Pow(10, 6);
-
-                    if (kv.Key.Contains("PM1", StringComparison.OrdinalIgnoreCase)) pm1 = valX10Mu6;
-                    if (kv.Key.Contains("PM4", StringComparison.OrdinalIgnoreCase)) pm4 = valX10Mu6;
-                    if (kv.Key.Contains("TB1", StringComparison.OrdinalIgnoreCase)) tb1 = valX10Mu6;
-                    if (kv.Key.Contains("DH3", StringComparison.OrdinalIgnoreCase)) dh3 = valX10Mu6;
-                    if (kv.Key.Contains("VT", StringComparison.OrdinalIgnoreCase)) vt = valX10Mu6;
+                    double sum = 0;
+                    foreach (DataRow row in resultTable.Rows)
+                    {
+                        if (row["Ngày"].ToString() == "Tổng") continue;
+                        double.TryParse(row[col.ColumnName]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double val);
+                        sum += val;
+                    }
+                    totalRow[col.ColumnName] = sum.ToString("#,0", CultureInfo.InvariantCulture);
                 }
-
-                newRow["PM1"] = pm1.ToString("#,0", CultureInfo.InvariantCulture);
-                newRow["PM4"] = pm4.ToString("#,0", CultureInfo.InvariantCulture);
-                newRow["TB1"] = tb1.ToString("#,0", CultureInfo.InvariantCulture);
-                newRow["VT44MR"] = vt.ToString("#,0", CultureInfo.InvariantCulture);
-                newRow["DH3_MR"] = dh3.ToString("#,0", CultureInfo.InvariantCulture);
-                newRow["ChiPhi"] = (pm1 + pm4 + tb1 + dh3 + vt).ToString("#,0", CultureInfo.InvariantCulture);
-
-                resultTable.Rows.Add(newRow);
             }
-
-            var totalRow = resultTable.NewRow();
-            totalRow["Ngày"] = "Tổng";
-
-            double totalPM1 = 0, totalPM4 = 0, totalTB1 = 0, totalDH3 = 0, totalVT = 0, totalSLHD = 0;
-
-            foreach (DataRow row in resultTable.Rows)
-            {
-                double.TryParse(row["PM1"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vPM1);
-                double.TryParse(row["PM4"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vPM4);
-                double.TryParse(row["TB1"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vTB1);
-
-                double.TryParse(row["VT44MR"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vVT);
-                double.TryParse(row["DH3_MR"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vDH3);
-                double.TryParse(row["ChiPhi"]?.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double vSLHD);
-
-                totalPM1 += vPM1;
-                totalPM4 += vPM4;
-                totalTB1 += vTB1;
-                totalVT += vVT;
-                totalDH3 += vDH3;
-                totalSLHD += vSLHD;
-            }
-
-            totalRow["PM1"] = totalPM1.ToString("#,0", CultureInfo.InvariantCulture);
-            totalRow["PM4"] = totalPM4.ToString("#,0", CultureInfo.InvariantCulture);
-            totalRow["TB1"] = totalTB1.ToString("#,0", CultureInfo.InvariantCulture);
-
-            totalRow["VT44MR"] = totalVT.ToString("#,0", CultureInfo.InvariantCulture);
-            totalRow["DH3_MR"] = totalDH3.ToString("#,0", CultureInfo.InvariantCulture);
-            totalRow["ChiPhi"] = totalSLHD.ToString("#,0", CultureInfo.InvariantCulture);
-
             resultTable.Rows.Add(totalRow);
 
+            // Sắp xếp lại đúng thứ tự cột mong muốn
+            var orderedColumns = new[]
+            {
+                "Ngày",
+                "PM1_SL", "PM4_SL", "TB1_SL", "VT44MR_SL", "DH3_MR_SL", "Tong_SL",
+                "PM1_CP", "PM4_CP", "TB1_CP", "VT44MR_CP", "DH3_MR_CP", "Tong_CP"
+            };
 
-            // 4. Tạo bảng trong SQL Server
-            var columnDefs = resultTable.Columns.Cast<DataColumn>()
-                .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
-            var createSql = $"CREATE TABLE [{safeTableName}] ({string.Join(", ", columnDefs)})";
-            using var createCmd = new SqlCommand(createSql, conn);
-            await createCmd.ExecuteNonQueryAsync();
+            var orderedTable = new DataTable();
+            foreach (var colName in orderedColumns)
+                orderedTable.Columns.Add(colName, typeof(string));
 
-            // 5. Ghi dữ liệu vào bảng
-            using var bulkCopy = new SqlBulkCopy(conn) { DestinationTableName = safeTableName };
-            foreach (DataColumn col in resultTable.Columns)
-                bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+            foreach (DataRow oldRow in resultTable.Rows)
+            {
+                var newRow = orderedTable.NewRow();
+                foreach (var colName in orderedColumns)
+                    newRow[colName] = oldRow[colName];
+                orderedTable.Rows.Add(newRow);
+            }
 
-            await bulkCopy.WriteToServerAsync(resultTable);
+            // Ghi vào SQL
+            using (var dropCmd = new SqlCommand("IF OBJECT_ID('TongHop', 'U') IS NOT NULL DROP TABLE TongHop", conn))
+                await dropCmd.ExecuteNonQueryAsync();
+
+            var columnDefs = orderedTable.Columns.Cast<DataColumn>().Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
+            var createSql = $"CREATE TABLE TongHop ({string.Join(", ", columnDefs)})";
+            using (var createCmd = new SqlCommand(createSql, conn))
+                await createCmd.ExecuteNonQueryAsync();
+
+            using var bulk = new SqlBulkCopy(conn) { DestinationTableName = "TongHop" };
+            foreach (DataColumn col in orderedTable.Columns)
+                bulk.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+
+            await bulk.WriteToServerAsync(orderedTable);
         }
 
 
