@@ -35,7 +35,6 @@ public class SheetImportHandler : ISheetImportHandler
     public async Task ImportSheetAsync(Stream fileStream, string sheetName, int headerRow, int startRow, string? tableName = null, int? endRow = null)
     {
         ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
-        Console.WriteLine(tableName);
         using var package = new ExcelPackage(fileStream);
         var sheet = package.Workbook.Worksheets[sheetName];
 
@@ -45,12 +44,25 @@ public class SheetImportHandler : ISheetImportHandler
         int endCol = sheet.Dimension.End.Column;
         int maxRow = sheet.Dimension.End.Row;
         int actualEndRow = endRow ?? maxRow;
-        Console.WriteLine(actualEndRow);
+
         var columns = new List<string>();
+        var rawColumnMap = new Dictionary<string, string>();
+
         for (int col = 1; col <= endCol; col++)
         {
-            var header = sheet.Cells[headerRow, col].Text.Trim();
-            columns.Add(string.IsNullOrWhiteSpace(header) ? $"Col{col}" : header);
+            var parts = new List<string>();
+            for (int row = headerRow; row < startRow; row++)
+            {
+                var text = sheet.Cells[row, col].Text.Trim();
+                if (!string.IsNullOrWhiteSpace(text))
+                    parts.Add(text);
+            }
+
+            var combined = parts.Count > 0 ? string.Join("_", parts) : $"Col{col}";
+            var normalized = Regex.Replace(combined, @"\W+", "");
+
+            columns.Add(normalized);
+            rawColumnMap[normalized] = combined;
         }
 
         var rows = new List<List<string>>();
@@ -63,6 +75,7 @@ public class SheetImportHandler : ISheetImportHandler
             }
             rows.Add(rowData);
         }
+
         var finalTableName = string.IsNullOrWhiteSpace(tableName) ? sheetName : tableName;
         var normalizedTableName = Regex.Replace(NormalizeVietnamese(finalTableName), @"\W+", "");
 
