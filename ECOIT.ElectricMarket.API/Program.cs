@@ -2,7 +2,6 @@ using ECOIT.ElectricMarket.Aplication.Interface;
 using ECOIT.ElectricMarket.Application.Interface;
 using ECOIT.ElectricMarket.Application.Services;
 using ECOIT.ElectricMarket.Infrastructure.SQL;
-using OfficeOpenXml;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,7 +9,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 //ExcelPackage.License = new OfficeOpenXml.License.NonCommercialLicense();
-
 
 builder.Services.AddScoped<IDynamicTableService, DynamicTableService>();
 builder.Services.AddScoped<ISheetImportHandler, SheetImportHandler>();

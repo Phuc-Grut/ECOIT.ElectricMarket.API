@@ -1,7 +1,7 @@
 ﻿using ECOIT.ElectricMarket.Application.Interface;
 using Microsoft.Extensions.Configuration;
-using System.Data.SqlClient;
 using System.Data;
+using System.Data.SqlClient;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
@@ -10,10 +10,12 @@ namespace ECOIT.ElectricMarket.Application.Services
     public class CaculateServices : ICaculateServices
     {
         private readonly string _connectionString;
+
         public CaculateServices(IConfiguration config)
         {
             _connectionString = config.GetConnectionString("DefaultConnection");
         }
+
         private string NormalizeNumber(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return "0";
@@ -21,12 +23,12 @@ namespace ECOIT.ElectricMarket.Application.Services
 
             if (raw.Contains(" ") && raw.Contains("."))
                 raw = raw.Replace(" ", "").Replace(",", "").Replace(".", ",");
-
             else if (!raw.Contains(",") && raw.Contains("."))
                 raw = raw.Replace(".", ",");
 
             return raw.Replace(",", ".");
         }
+
         private static string FormatToThousandVN(double value)
         {
             var rounded = Math.Round(value);
@@ -58,12 +60,11 @@ namespace ECOIT.ElectricMarket.Application.Services
             var fmpExists = (int)await checkFmpCmd.ExecuteScalarAsync();
 
             if (fmpExists == 0)
-                throw new Exception($" Bảng '{tableFMP}' không tồn tại. Vui lòng kiểm tra lại.");;
+                throw new Exception($" Bảng '{tableFMP}' không tồn tại. Vui lòng kiểm tra lại."); ;
 
             var checkA0Cmd = new SqlCommand($@"
             IF OBJECT_ID(N'{tableA0}', 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
             var a0Exists = (int)await checkA0Cmd.ExecuteScalarAsync();
-
 
             if (a0Exists == 0)
                 throw new Exception($" Bảng '{tableA0}' không tồn tại. Vui lòng kiểm tra lại.");
@@ -304,7 +305,6 @@ namespace ECOIT.ElectricMarket.Application.Services
                     var cfmp = fmp * k;
                     Console.WriteLine($"👉 Ngày {dfFMP.Rows[i]["Ngày"]} | Giờ {col.ColumnName} | FMP = {fmp} | k = {k} → CFMP = {cfmp}");
                     newRow[col.ColumnName] = FormatToThousandVN(cfmp);
-
                 }
                 dfCFMP.Rows.Add(newRow);
             }

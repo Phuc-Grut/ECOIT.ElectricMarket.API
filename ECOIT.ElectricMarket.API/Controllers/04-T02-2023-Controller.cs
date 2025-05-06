@@ -1,6 +1,4 @@
 ﻿using ECOIT.ElectricMarket.Aplication.Interface;
-using ECOIT.ElectricMarket.Infrastructure.SQL;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECOIT.ElectricMarket.API.Controllers
@@ -16,13 +14,11 @@ namespace ECOIT.ElectricMarket.API.Controllers
             _dynamicTableService = dynamicTableService;
         }
 
-
         [HttpPost("x1/create")]
         public async Task<IActionResult> TaoBangX1()
         {
             await _dynamicTableService.TaoBangVaTinhX1Async();
             return Ok("Đã tạo bảng X1 và tính đủ 48 giá trị.");
         }
-
     }
 }

@@ -1,22 +1,21 @@
-﻿using ECOIT.ElectricMarket.Aplication.Interface;
+﻿using Dapper;
+using ECOIT.ElectricMarket.Aplication.Interface;
 using Microsoft.Data.SqlClient;
-using System.Text.RegularExpressions;
 using Microsoft.Extensions.Configuration;
-using Dapper;
-using OfficeOpenXml;
 using System.Data;
-using System.Globalization;
-using System.Text;
+using System.Text.RegularExpressions;
 
 namespace ECOIT.ElectricMarket.Infrastructure.SQL
 {
     public class DynamicTableService : IDynamicTableService
     {
         private readonly string _connectionString;
+
         public DynamicTableService(IConfiguration config)
         {
             _connectionString = config.GetConnectionString("DefaultConnection");
         }
+
         public async Task CreateTableAsync(string tableName, List<string> columnNames)
         {
             var safeTableName = Regex.Replace(tableName, @"\W+", "");

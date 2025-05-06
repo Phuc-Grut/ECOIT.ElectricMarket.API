@@ -10,6 +10,7 @@ namespace ECOIT.ElectricMarket.Application.Services;
 public class SheetImportHandler : ISheetImportHandler
 {
     private readonly IDynamicTableService _tableService;
+
     public SheetImportHandler(IDynamicTableService tableService)
     {
         _tableService = tableService;
