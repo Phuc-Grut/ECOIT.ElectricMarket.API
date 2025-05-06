@@ -135,6 +135,56 @@ namespace ECOIT.ElectricMarket.Infrastructure.SQL
         //        await conn.ExecuteAsync(sql);
         //    }
         //}
+        public async Task TaoBangVaTinhX1Async()
+        {
+            const decimal x1Value = 1.2m / 100m;
+            var tableName = "X1";
+            var safeTableName = Regex.Replace(tableName, @"\W+", "");
 
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var checkCmd = new SqlCommand(@"
+        IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
+            checkCmd.Parameters.AddWithValue("@tableName", safeTableName);
+            var exists = (int)await checkCmd.ExecuteScalarAsync();
+
+            if (exists == 0)
+            {
+                var createSql = $@"
+            CREATE TABLE [{safeTableName}] (
+                Gio NVARCHAR(10),
+                ChuKy INT PRIMARY KEY,
+                X1 DECIMAL(10,5)
+            )";
+                await conn.ExecuteAsync(createSql);
+            }
+
+            var table = new DataTable();
+            table.Columns.Add("Gio", typeof(string));
+            table.Columns.Add("ChuKy", typeof(int));
+            table.Columns.Add("X1", typeof(decimal));
+
+            for (int i = 0; i < 48; i++)
+            {
+                var minutes = i * 30;
+                var gio = TimeSpan.FromMinutes(minutes);
+                string gioStr = gio.Minutes == 0
+                    ? $"{gio.Hours}h"
+                    : $"{gio.Hours}h{gio.Minutes}";
+
+                table.Rows.Add(gioStr, i + 1, x1Value);
+            }
+
+            using var bulkCopy = new SqlBulkCopy(conn)
+            {
+                DestinationTableName = safeTableName
+            };
+            bulkCopy.ColumnMappings.Add("Gio", "Gio");
+            bulkCopy.ColumnMappings.Add("ChuKy", "ChuKy");
+            bulkCopy.ColumnMappings.Add("X1", "GiaTri");
+
+            await bulkCopy.WriteToServerAsync(table);
+        }
     }
 }
