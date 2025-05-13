@@ -76,7 +76,7 @@ namespace ECOIT.ElectricMarket.Infrastructure.SQL
             SELECT TABLE_NAME
             FROM INFORMATION_SCHEMA.TABLES
             WHERE TABLE_TYPE = 'BASE TABLE'
-        ", conn);
+            ", conn);
 
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
@@ -144,7 +144,7 @@ namespace ECOIT.ElectricMarket.Infrastructure.SQL
             await conn.OpenAsync();
 
             var checkCmd = new SqlCommand(@"
-        IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
+            IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
             checkCmd.Parameters.AddWithValue("@tableName", safeTableName);
             var exists = (int)await checkCmd.ExecuteScalarAsync();
 
@@ -166,11 +166,16 @@ namespace ECOIT.ElectricMarket.Infrastructure.SQL
 
             for (int i = 0; i < 48; i++)
             {
-                var minutes = i * 30;
+                var minutes = (i + 1) * 30;
                 var gio = TimeSpan.FromMinutes(minutes);
-                string gioStr = gio.Minutes == 0
-                    ? $"{gio.Hours}h"
-                    : $"{gio.Hours}h{gio.Minutes}";
+
+                string gioStr;
+                if (minutes == 1440)
+                    gioStr = "24h";
+                else
+                    gioStr = gio.Minutes == 0
+                        ? $"{gio.Hours}h"
+                        : $"{gio.Hours}h{gio.Minutes}";
 
                 table.Rows.Add(gioStr, i + 1, x1Value);
             }
@@ -181,7 +186,7 @@ namespace ECOIT.ElectricMarket.Infrastructure.SQL
             };
             bulkCopy.ColumnMappings.Add("Gio", "Gio");
             bulkCopy.ColumnMappings.Add("ChuKy", "ChuKy");
-            bulkCopy.ColumnMappings.Add("X1", "GiaTri");
+            bulkCopy.ColumnMappings.Add("X1", "X1");
 
             await bulkCopy.WriteToServerAsync(table);
         }
