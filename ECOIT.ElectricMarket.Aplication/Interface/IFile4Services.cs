@@ -9,5 +9,7 @@ namespace ECOIT.ElectricMarket.Application.Interface
     public interface IFile4Services
     {
         Task<string> CalculateAndInsertQM1_48ChukyAsync();
+        Task CalculateAndInsertQM1_24ChukyAsync();
+        Task CalculateAndInsertX2ThaiBinhAsync();
     }
 }
