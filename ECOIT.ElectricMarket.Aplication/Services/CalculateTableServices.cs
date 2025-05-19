@@ -124,7 +124,6 @@ namespace ECOIT.ElectricMarket.Application.Services
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            // 1. Kiểm tra bảng đích
             var safeTableName = Regex.Replace(request.OutputTable, "\\W+", "");
             var checkCmd = new SqlCommand("IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
             checkCmd.Parameters.AddWithValue("@tableName", safeTableName);
@@ -132,7 +131,6 @@ namespace ECOIT.ElectricMarket.Application.Services
             if (exists == 1)
                 throw new Exception($"Bảng '{safeTableName}' đã tồn tại.");
 
-            // 2. Phân tích công thức: FMP = SMP + CAN
             var parts = request.Formula.Split('=');
             if (parts.Length != 2) throw new Exception("Công thức không hợp lệ.");
             var right = parts[1].Trim();
@@ -140,7 +138,6 @@ namespace ECOIT.ElectricMarket.Application.Services
             var operands = Regex.Split(right, @"[+\-\*/]").Select(x => x.Trim()).ToList();
             var operators = Regex.Matches(right, "[+\\-\\*/]").Cast<Match>().Select(m => m.Value).ToList();
 
-            // 3. Load các bảng liên quan
             var tables = new Dictionary<string, DataTable>();
             foreach (var tbl in request.SourceTables.Distinct())
             {
@@ -151,7 +148,6 @@ namespace ECOIT.ElectricMarket.Application.Services
                 tables[tbl] = dt;
             }
 
-            // 4. Tạo bảng kết quả
             var resultTable = new DataTable();
             resultTable.Columns.Add("Ngày");
             resultTable.Columns.Add("Giá");
@@ -163,7 +159,6 @@ namespace ECOIT.ElectricMarket.Application.Services
             foreach (var col in timeCols)
                 resultTable.Columns.Add(col);
 
-            // 5. Lấy danh sách ngày chung
             var days = tables.Values.First().AsEnumerable()
                 .Select(r => r["Ngày"].ToString())
                 .Where(d => !string.IsNullOrWhiteSpace(d))
@@ -202,7 +197,6 @@ namespace ECOIT.ElectricMarket.Application.Services
                 resultTable.Rows.Add(newRow);
             }
 
-            // 6. Tạo bảng và insert dữ liệu
             var columnsSql = resultTable.Columns
                 .Cast<DataColumn>()
                 .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
@@ -219,22 +213,19 @@ namespace ECOIT.ElectricMarket.Application.Services
                 bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
             }
             await bulkCopy.WriteToServerAsync(resultTable);
-        } // end Task
+        }
 
         private string NormalizeNumber(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return "0";
             raw = raw.Replace(" ", "").Trim();
 
-            // Nếu số có 2 dấu phân cách → xử lý theo kiểu Việt
             if (Regex.IsMatch(raw, @"^\d{1,3}(\.\d{3})+,\d+$"))
             {
-                // Ví dụ: 1.234.567,89 → 1234567.89
                 raw = raw.Replace(".", "").Replace(",", ".");
             }
             else if (Regex.IsMatch(raw, @"^\d{1,3}(,\d{3})+\.\d+$"))
             {
-                // Ví dụ: 1,234,567.89 (kiểu US) → 1234567.89
                 raw = raw.Replace(",", "");
             }
             else

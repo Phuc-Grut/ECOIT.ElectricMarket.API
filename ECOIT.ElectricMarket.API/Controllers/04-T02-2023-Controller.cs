@@ -43,36 +43,25 @@ namespace ECOIT.ElectricMarket.API.Controllers
             return Ok("Tính QM1 24Chuky thành công");
         }
 
-        [HttpPost("calculate-x2-thaibinh")]
-        public async Task<IActionResult> CalculateAndInsertX2ThaiBinh()
+        [HttpPost("calculate-x2-province")]
+        public async Task<IActionResult> CalculateAndInsertX2ThaiBinh(string province)
         {
-            await _file4Services.CalculateAndInsertX2ThaiBinhAsync();
-            return Ok("Tính x2 thái bình thành công");
+            await _file4Services.CalculateAndInsertX2ProvinceAsync(province);
+            return Ok($"Tính x2 {province} thành công");
         }
 
-        private string GenerateCreateTableSql(string tableName, DataTable schema)
+        [HttpPost("calculate-province")]
+        public async Task<IActionResult> CalculateProvince(string province, string tableName)
         {
-            var columns = new List<string>();
+            await _file4Services.CalculateProvinceAsync(province, tableName);
+            return Ok($"Tính {province} thành công");
+        }
 
-            foreach (DataColumn col in schema.Columns)
-            {
-                string colName = $"[{col.ColumnName}]";
-                string sqlType = "NVARCHAR(MAX)";
-
-                if (col.DataType == typeof(int)) sqlType = "INT";
-                else if (col.DataType == typeof(double) || col.DataType == typeof(float) || col.DataType == typeof(decimal)) sqlType = "FLOAT";
-                else if (col.DataType == typeof(DateTime)) sqlType = "DATETIME";
-
-                columns.Add($"{colName} {sqlType}");
-            }
-
-            return $@"
-        IF OBJECT_ID('dbo.{tableName}', 'U') IS NULL
-        BEGIN
-            CREATE TABLE dbo.{tableName} (
-                {string.Join(",\n", columns)}
-            )
-        END";
+        [HttpPost("calculate-qm2-province")]
+        public async Task<IActionResult> CalculateQM2Province(string province, string tableName)
+        {
+            await _file4Services.CalculateQM2ProvinceAsync(province, tableName);
+            return Ok($"Tính QM2 {province} thành công");
         }
     }
 }

@@ -203,7 +203,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             return "Tính QM1 48 chu kỳ thành công";
         }
 
-        public async Task CalculateAndInsertX2ThaiBinhAsync()
+        public async Task CalculateAndInsertX2ProvinceAsync(string province)
         {
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
@@ -216,13 +216,15 @@ namespace ECOIT.ElectricMarket.Application.Services
             }
 
             var dtResult = dtSchema.Clone();
-            
-            if(!dtResult.Columns.Contains("Tổng"))
+
+            if (!dtResult.Columns.Contains("Tổng"))
                 dtResult.Columns.Add("Tổng");
 
-            // Dữ liệu X2 - Thái Bình
+            // Dữ liệu X2 theo tỉnh
             var dtSource = new DataTable();
-            using (var adapter = new SqlDataAdapter("SELECT * FROM X2 WHERE [Đơnvị] = N'Thái Bình'", conn))
+            var provinceSafe = province.Replace("'", "''"); // tránh injection
+            var sqlX2 = $"SELECT * FROM X2 WHERE [Đơnvị] = N'{provinceSafe}'";
+            using (var adapter = new SqlDataAdapter(sqlX2, conn))
             {
                 adapter.Fill(dtSource);
             }
@@ -280,18 +282,20 @@ namespace ECOIT.ElectricMarket.Application.Services
 
                 newRow["Tổng"] = Math.Round(total, 2).ToString("N2", CultureInfo.InvariantCulture);
                 dtResult.Rows.Add(newRow);
-
             }
 
+            // Tạo tên bảng dựa trên tên tỉnh (vd: "X2_ThaiBinh")
+            string tableName = "X2_" + RemoveDiacritics(province).Replace(" ", "");
+
             // Tạo bảng nếu chưa có
-            var createTableSql = GenerateCreateTableSql("X2_ThaiBinh", dtResult);
+            var createTableSql = GenerateCreateTableSql(tableName, dtResult);
             using (var cmdCreate = new SqlCommand(createTableSql, conn))
             {
                 await cmdCreate.ExecuteNonQueryAsync();
             }
 
             // Truncate bảng
-            using (var cmdTruncate = new SqlCommand("TRUNCATE TABLE X2_ThaiBinh", conn))
+            using (var cmdTruncate = new SqlCommand($"TRUNCATE TABLE [{tableName}]", conn))
             {
                 await cmdTruncate.ExecuteNonQueryAsync();
             }
@@ -299,7 +303,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             // Insert data
             using (var bulkCopy = new SqlBulkCopy(conn))
             {
-                bulkCopy.DestinationTableName = "X2_ThaiBinh";
+                bulkCopy.DestinationTableName = tableName;
                 foreach (DataColumn col in dtResult.Columns)
                 {
                     bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
@@ -307,6 +311,21 @@ namespace ECOIT.ElectricMarket.Application.Services
 
                 await bulkCopy.WriteToServerAsync(dtResult);
             }
+        }
+
+        public static string RemoveDiacritics(string text)
+        {
+            string normalized = text.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder();
+            foreach (var c in normalized)
+            {
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString().Normalize(NormalizationForm.FormC);
         }
 
         private string GenerateCreateTableSql(string tableName, DataTable schema)
@@ -329,5 +348,173 @@ namespace ECOIT.ElectricMarket.Application.Services
             )
             END";
         }
+
+        public async Task CalculateProvinceAsync(string province, string tableName)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var dtSource = new DataTable();
+            using (var adapter = new SqlDataAdapter($"SELECT * FROM [{tableName}]", conn))
+            {
+                adapter.Fill(dtSource);
+            }
+
+            var dtResult = dtSource.Clone();
+
+            if (!dtResult.Columns.Contains("Tổng"))
+                dtResult.Columns.Add("Tổng");
+
+            foreach (DataRow row in dtSource.Rows)
+            {
+                var newRow = dtResult.NewRow();
+                decimal total = 0;
+
+                foreach (DataColumn col in dtSource.Columns)
+                {
+                    var colName = col.ColumnName;
+
+                    if (colName == "Chukì" || colName == "Col2" || colName == "Tổng")
+                    {
+                        newRow[colName] = row[colName];
+                        continue;
+                    }
+
+                    var value = row[colName];
+                    if (decimal.TryParse(value?.ToString(), out decimal val))
+                    {
+                        decimal divided = val / 100m;
+                        newRow[colName] = Math.Round(divided, 5);
+                        total += divided;
+                    }
+                    else
+                    {
+                        newRow[colName] = 0;
+                    }
+                }
+
+                newRow["Tổng"] = Math.Round(total, 5).ToString("N5", CultureInfo.InvariantCulture);
+                dtResult.Rows.Add(newRow);
+            }
+
+            string newTableName = RemoveDiacritics(province).Replace(" ", "");
+
+            var createSql = GenerateCreateTableSql(newTableName, dtResult);
+            using (var cmdCreate = new SqlCommand(createSql, conn))
+            {
+                await cmdCreate.ExecuteNonQueryAsync();
+            }
+
+            using (var cmdTruncate = new SqlCommand($"TRUNCATE TABLE [{newTableName}]", conn))
+            {
+                await cmdTruncate.ExecuteNonQueryAsync();
+            }
+
+            using (var bulkCopy = new SqlBulkCopy(conn))
+            {
+                bulkCopy.DestinationTableName = newTableName;
+                foreach (DataColumn col in dtResult.Columns)
+                {
+                    bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+                }
+
+                await bulkCopy.WriteToServerAsync(dtResult);
+            }
+        }
+
+        public async Task CalculateQM2ProvinceAsync(string province, string tableName)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var dtQM1 = new DataTable();
+            using (var adapter = new SqlDataAdapter("SELECT * FROM QM1_PhuTaiENV", conn))
+            {
+                adapter.Fill(dtQM1);
+            }
+            if (dtQM1.Rows.Count > 0)
+            {
+                dtQM1.Rows[0].Delete();
+                dtQM1.AcceptChanges();
+            }
+
+            var dtX2 = new DataTable();
+            using (var adapter = new SqlDataAdapter($"SELECT * FROM [{tableName}]", conn))
+            {
+                adapter.Fill(dtX2);
+            }
+
+            var dtResult = dtX2.Clone();
+
+            if (!dtResult.Columns.Contains("Tổng"))
+                dtResult.Columns.Add("Tổng");
+
+            for (int i = 0; i < dtQM1.Rows.Count; i++)
+            {
+                var rowQM1 = dtQM1.Rows[i];
+                var rowX2 = i < dtX2.Rows.Count ? dtX2.Rows[i] : null;
+
+                var newRow = dtResult.NewRow();
+                decimal total = 0;
+
+                foreach (DataColumn col in dtResult.Columns)
+                {
+                    var colName = col.ColumnName;
+
+                    if (colName == "Chukì" || colName == "Col2")
+                    {
+                        if (rowX2 != null && dtX2.Columns.Contains(colName))
+                            newRow[colName] = rowX2[colName];
+                        else
+                            newRow[colName] = DBNull.Value;
+                        continue;
+                    }
+
+                    if (colName == "Tổng")
+                        continue;
+
+                    if (decimal.TryParse(rowQM1[colName]?.ToString(), out var val1) &&
+                        rowX2 != null && decimal.TryParse(rowX2[colName]?.ToString(), out var val2))
+                    {
+                        var multiplied = Math.Round(val1 * val2, 5);
+                        newRow[colName] = Math.Round(multiplied, 0).ToString("N0", CultureInfo.InvariantCulture);
+
+                        total += multiplied;
+                    }
+                    else
+                    {
+                        newRow[colName] = 0;
+                    }
+                }
+                newRow["Tổng"] = Math.Round(total, 0).ToString("N0", CultureInfo.InvariantCulture);
+                dtResult.Rows.Add(newRow);
+            }
+
+            string newTableName = "QM2_" + RemoveDiacritics(province).Replace(" ", "");
+
+            var createTableSql = GenerateCreateTableSql(newTableName, dtResult);
+            using (var cmdCreate = new SqlCommand(createTableSql, conn))
+            {
+                await cmdCreate.ExecuteNonQueryAsync();
+            }
+
+            using (var cmdTruncate = new SqlCommand($"TRUNCATE TABLE [{newTableName}]", conn))
+            {
+                await cmdTruncate.ExecuteNonQueryAsync();
+            }
+
+            using (var bulkCopy = new SqlBulkCopy(conn))
+            {
+                bulkCopy.DestinationTableName = newTableName;
+                foreach (DataColumn col in dtResult.Columns)
+                {
+                    bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+                }
+
+                await bulkCopy.WriteToServerAsync(dtResult);
+            }
+        }
+
+
     }
 }

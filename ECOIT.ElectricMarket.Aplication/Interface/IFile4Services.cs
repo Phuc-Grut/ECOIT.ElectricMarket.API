@@ -10,6 +10,8 @@ namespace ECOIT.ElectricMarket.Application.Interface
     {
         Task<string> CalculateAndInsertQM1_48ChukyAsync();
         Task CalculateAndInsertQM1_24ChukyAsync();
-        Task CalculateAndInsertX2ThaiBinhAsync();
+        Task CalculateAndInsertX2ProvinceAsync(string province);
+        Task CalculateProvinceAsync(string province, string tableName);
+        Task CalculateQM2ProvinceAsync(string province, string tableName);
     }
 }
