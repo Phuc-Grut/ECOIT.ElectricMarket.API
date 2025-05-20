@@ -8,6 +8,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using ECOIT.ElectricMarket.Application.Interface;
+using ECOIT.ElectricMarket.Application.DTO;
+using System.Text.RegularExpressions;
 
 namespace ECOIT.ElectricMarket.Application.Services
 {
@@ -515,6 +517,251 @@ namespace ECOIT.ElectricMarket.Application.Services
             }
         }
 
+        public async Task CalculateQM2_24ChukyAsync(string province, string tableName)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var dtSource = new DataTable();
+            using (var adapter = new SqlDataAdapter($"SELECT * FROM  [{tableName}]", conn))
+            {
+                adapter.Fill(dtSource);
+            }
+
+            // Tạo bảng kết quả
+            var dtResult = new DataTable();
+            dtResult.Columns.Add("Chukì");
+            dtResult.Columns.Add("Col2");
+            for (int i = 1; i <= 24; i++)
+            {
+                dtResult.Columns.Add($"{i}h");
+            }
+            dtResult.Columns.Add("Tổng");
+
+            foreach (DataRow row in dtSource.Rows)
+            {
+                var newRow = dtResult.NewRow();
+
+                newRow["Chukì"] = row["Chukì"];
+                newRow["Col2"] = row["Col2"];
+
+                if (row["Chukì"]?.ToString() == "Ngày" || row["Col2"]?.ToString() == "Thứ")
+                {
+                    for (int i = 1; i <= 24; i++)
+                        newRow[$"{i}h"] = i.ToString();
+
+                    newRow["Tổng"] = "Tổng";
+                    dtResult.Rows.Add(newRow);
+                    continue;
+                }
+
+                decimal total = 0;
+                for (int i = 0; i < 24; i++)
+                {
+                    int colIndex1 = 2 + (i * 2);
+                    int colIndex2 = 3 + (i * 2);
+
+                    decimal.TryParse(row[colIndex1]?.ToString(), out decimal d1);
+                    decimal.TryParse(row[colIndex2]?.ToString(), out decimal d2);
+
+                    decimal sum = d1 + d2;
+                    total += sum;
+
+                    newRow[$"{i + 1}h"] = Math.Round(sum).ToString("N0", CultureInfo.InvariantCulture);
+                }
+
+                newRow["Tổng"] = Math.Round(total).ToString("N0", CultureInfo.InvariantCulture);
+                dtResult.Rows.Add(newRow);
+            }
+            var resultTableName = $"QM2_{province}_24Chuky";
+
+
+            // Tạo bảng nếu chưa có
+            var createTableSql = GenerateCreateTableSql(resultTableName, dtResult);
+            using (var cmdCreate = new SqlCommand(createTableSql, conn))
+            {
+                await cmdCreate.ExecuteNonQueryAsync();
+            }
+
+            using (var truncateCmd = new SqlCommand($"TRUNCATE TABLE dbo.[{resultTableName}]", conn))
+            {
+                await truncateCmd.ExecuteNonQueryAsync();
+            }
+
+            using (var bulkCopy = new SqlBulkCopy(conn))
+            {
+                bulkCopy.DestinationTableName = $"dbo.[{resultTableName}]";
+                foreach (DataColumn col in dtResult.Columns)
+                {
+                    bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+                }
+                await bulkCopy.WriteToServerAsync(dtResult);
+            }
+        }
+
+        public async Task CalculateQMTongHop(CalculationRequest request)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var safeTableName = Regex.Replace(request.OutputTable, "\\W+", "");
+            var checkCmd = new SqlCommand("IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
+            checkCmd.Parameters.AddWithValue("@tableName", safeTableName);
+            var exists = (int)await checkCmd.ExecuteScalarAsync();
+            if (exists == 1)
+                throw new Exception($"Bảng '{safeTableName}' đã tồn tại.");
+
+            var parts = request.Formula.Split('=');
+            if (parts.Length != 2) throw new Exception("Công thức không hợp lệ.");
+            var right = parts[1].Trim();
+
+            var operands = Regex.Split(right, @"[+\-\*/]").Select(x => x.Trim()).ToList();
+            var operators = Regex.Matches(right, "[+\\-\\*/]").Cast<Match>().Select(m => m.Value).ToList();
+
+            var tables = new Dictionary<string, DataTable>();
+            foreach (var tbl in request.SourceTables.Distinct())
+            {
+                var dt = new DataTable();
+                using var cmd = new SqlCommand($"SELECT * FROM [{tbl}]", conn);
+                using var adapter = new SqlDataAdapter(cmd);
+                adapter.Fill(dt);
+                tables[tbl] = dt;
+            }
+
+            // ===== TẠO KẾT QUẢ =====
+            var resultTable = new DataTable("KQ_" + safeTableName);
+            resultTable.Columns.Clear();
+
+            // Thêm cột "Ngày"
+            if (!resultTable.Columns.Contains("Ngày"))
+                resultTable.Columns.Add("Ngày");
+
+            // Lấy các cột giờ từ bảng đầu tiên
+            var timeCols = tables.Values.First().Columns.Cast<DataColumn>()
+                .Where(c => c.ColumnName != "Chukì" && c.ColumnName != "Col2" && c.ColumnName != "Tổng" && c.ColumnName != "Ngày")
+                .Select(c => c.ColumnName)
+                .ToList();
+
+            // Thêm các cột giờ
+            foreach (var col in timeCols)
+            {
+                if (!resultTable.Columns.Contains(col))
+                    resultTable.Columns.Add(col);
+            }
+
+            // Thêm cột Tổng
+            if (!resultTable.Columns.Contains("Tổng"))
+                resultTable.Columns.Add("Tổng");
+
+            // Lấy ngày hợp lệ
+            var days = tables.Values.First().AsEnumerable()
+                .Where(r => !IsHeaderRow(r))
+                .Select(r => NormalizeDate(
+                    r.Table.Columns.Contains("Chukì") ? r["Chukì"]?.ToString() : null
+                ))
+                .Where(d => !string.IsNullOrWhiteSpace(d))
+                .Distinct();
+
+            foreach (var day in days)
+            {
+                var newRow = resultTable.NewRow();
+                newRow["Ngày"] = day;
+                double sum = 0;
+
+                foreach (var col in timeCols)
+                {
+                    double? result = null;
+
+                    for (int i = 0; i < operands.Count; i++)
+                    {
+                        var operand = operands[i];
+                        if (!tables.ContainsKey(operand)) continue;
+
+                        var tbl = tables[operand];
+                        var row = tbl.AsEnumerable()
+                            .FirstOrDefault(r => NormalizeDate(r["Chukì"]?.ToString()) == day && !IsHeaderRow(r));
+
+                        double.TryParse(NormalizeNumber(row?[col]?.ToString()), NumberStyles.Any, CultureInfo.InvariantCulture, out double val);
+
+                        if (i == 0)
+                            result = val;
+                        else
+                        {
+                            var op = operators[i - 1];
+                            if (op == "+") result += val;
+                            else if (op == "-") result -= val;
+                            else if (op == "*") result *= val;
+                            else if (op == "/") result = val == 0 ? 0 : result / val;
+                        }
+                    }
+
+                    newRow[col] = result?.ToString("0.###", CultureInfo.InvariantCulture);
+                    if (result.HasValue) sum += result.Value;
+                }
+
+                newRow["Tổng"] = sum.ToString("0.###", CultureInfo.InvariantCulture);
+                resultTable.Rows.Add(newRow);
+            }
+
+            // ===== TẠO BẢNG TRÊN SQL =====
+            var columnsSql = resultTable.Columns
+                .Cast<DataColumn>()
+                .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
+            var createSql = $"CREATE TABLE [{safeTableName}] ({string.Join(", ", columnsSql)})";
+
+            using var createCmd = new SqlCommand(createSql, conn);
+            await createCmd.ExecuteNonQueryAsync();
+
+            using var bulkCopy = new SqlBulkCopy(conn)
+            {
+                DestinationTableName = safeTableName
+            };
+
+            foreach (DataColumn col in resultTable.Columns)
+                bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+
+            await bulkCopy.WriteToServerAsync(resultTable);
+        }
+
+
+        private string NormalizeNumber(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "0";
+            raw = raw.Replace(" ", "").Trim();
+
+            if (Regex.IsMatch(raw, @"^\d{1,3}(\.\d{3})+,\d+$"))
+            {
+                raw = raw.Replace(".", "").Replace(",", ".");
+            }
+            else if (Regex.IsMatch(raw, @"^\d{1,3}(,\d{3})+\.\d+$"))
+            {
+                raw = raw.Replace(",", "");
+            }
+            else
+            {
+                raw = raw.Replace(",", ".");
+            }
+
+            return raw;
+        }
+        private string NormalizeDate(string? input)
+        {
+            if (DateTime.TryParseExact(input, new[] { "d/M/yyyy", "dd/MM/yyyy", "M/d/yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
+            {
+                return date.ToString("dd/MM/yyyy");
+            }
+            return input ?? "";
+        }
+        private bool IsHeaderRow(DataRow row)
+        {
+            var chuki = row.Table.Columns.Contains("Chukì") ? row["Chukì"]?.ToString()?.Trim() : null;
+            var col2 = row.Table.Columns.Contains("Col2") ? row["Col2"]?.ToString()?.Trim() : null;
+
+            return chuki == "Ngày" || col2 == "Thứ" ||
+                   int.TryParse(chuki, out _) || int.TryParse(col2, out _);
+        }
+
+        
 
     }
 }

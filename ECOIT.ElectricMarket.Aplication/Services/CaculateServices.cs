@@ -303,8 +303,11 @@ namespace ECOIT.ElectricMarket.Application.Services
                     double.TryParse(kRaw, NumberStyles.Any, CultureInfo.InvariantCulture, out double k);
 
                     var cfmp = fmp * k;
+                    cfmp = Math.Round(cfmp, 2); 
+
                     Console.WriteLine($"👉 Ngày {dfFMP.Rows[i]["Ngày"]} | Giờ {col.ColumnName} | FMP = {fmp} | k = {k} → CFMP = {cfmp}");
-                    newRow[col.ColumnName] = FormatToThousandVN(cfmp);
+                    newRow[col.ColumnName] = cfmp.ToString("0.##", CultureInfo.InvariantCulture);
+
                 }
                 dfCFMP.Rows.Add(newRow);
             }
