@@ -305,7 +305,6 @@ namespace ECOIT.ElectricMarket.Application.Services
                     var cfmp = fmp * k;
                     cfmp = Math.Round(cfmp, 2); 
 
-                    Console.WriteLine($"👉 Ngày {dfFMP.Rows[i]["Ngày"]} | Giờ {col.ColumnName} | FMP = {fmp} | k = {k} → CFMP = {cfmp}");
                     newRow[col.ColumnName] = cfmp.ToString("0.##", CultureInfo.InvariantCulture);
 
                 }
