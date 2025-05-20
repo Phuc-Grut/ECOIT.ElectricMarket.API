@@ -115,114 +115,43 @@ namespace ECOIT.ElectricMarket.Application.Services
         }
 
 
-        //public async Task CreateTongHopCsportAsync()
-        //{
-        //    var tableMapping = new Dictionary<string, string[]>
-        //    {
-        //        //sản lượng
-        //        { "QM1", new[] { "QM1_24Chuky" } },
-        //        { "QM2_ThaiBinh", new[] { "QM2_ThaiBinh_24Chuky" } },
-        //        { "QM2_VinhTan4", new[] { "QM2_VinhTan4_24Chuky" } },
-        //        { "QM2_VinhTan4_MR", new[] { "QM2_VinhTan4_MR_24Chuky" } },
-        //        { "QM2_DuyenHai3_MR", new[] { "QM2_DuyenHai3_MR_24Chuky" } },
-        //        //chi phí
-        //        { "Cspot1", new[] { "Cspot_PhúMỹ" } },
-        //        { "Cspot2_ThaiBinh", new[] { "Cspot_ThaiBinh" } },
-        //        { "Cspot2_VinhTan4", new[] { "Cspot_VinhTan4 "} },
-        //        { "Cspot2_VinhTan4_MR", new[] { "Cspot_VinhTan4_MR" } },
-        //        { "Cspot2_DuyenHai3_MR", new[] { "Csport_DuyenHai3_MR" } },
-        //    };
-
-        //    using var conn = new SqlConnection(_connectionString);
-        //    await conn.OpenAsync();
-
-        //    var allData = new Dictionary<string, DataTable>();
-
-        //    foreach (var kv in tableMapping)
-        //    {
-        //        var dt = new DataTable();
-        //        using var cmd = new SqlCommand($"SELECT Ngày, Tổng FROM [{kv.Value[0]}]", conn);
-        //        using var adapter = new SqlDataAdapter(cmd);
-        //        allData[kv.Key] = dt;
-        //    }
-
-        //    var allDays = allData.Values
-        //        .SelectMany(dt => dt.AsEnumerable().Select(row => row.Field<string>("Ngày")))
-        //        .Distinct()
-        //        .OrderBy(d => DateTime.ParseExact(d, "dd/MM/yyyy", CultureInfo.InvariantCulture))
-        //        .ToList();
-
-        //    var result = new DataTable();
-
-        //    result.Columns.Add("Ngày", typeof(string));
-        //    result.Columns.Add("QM1", typeof(string));
-        //    result.Columns.Add("QM2", typeof(string));
-        //    result.Columns.Add("QM", typeof(string));
-
-        //    result.Columns.Add("Cspot1", typeof(string));
-        //    result.Columns.Add("Cspot2", typeof(string));
-        //    result.Columns.Add("TongCspot", typeof(string));
-
-        //    var qm2Parts = new[]
-        //    {
-        //        "QM2_ThaiBinh",
-        //        "QM2_VinhTan4",
-        //        "QM2_VinhTan4_MR",
-        //        "QM2_DuyenHai3_MR"
-        //    };
-
-        //    var csport2Parts = new[]
-        //    {
-        //        "Cspot2_ThaiBinh",
-        //        "Cspot2_VinhTan4",
-        //        "Cspot2_VinhTan4_MR",
-        //        "Cspot2_DuyenHai3_MR"
-        //    };
-
-        //    foreach (var col in qm2Parts.Concat(csport2Parts)) 
-        //    {
-        //        result.Columns.Add(col, typeof(string));
-        //    }
-             
-        //}
-
 
         public async Task CreateTongHopCsportAsync()
         {
-            var tongHopTables = new Dictionary<string, string[]>
-            {
-                // Sản lượng
-                { "QM1", new[] { "QM1_24Chuky" } },
-                { "QM2_ThaiBinh", new[] { "QM2_ThaiBinh_24Chuky" } },
-                { "QM2_VinhTan4", new[] { "QM2_VinhTan4_24Chuky" } },
-                { "QM2_VinhTan4_MR", new[] { "QM2_VinhTan4_MR_24Chuky" } },
-                { "QM2_DuyenHai3_MR", new[] { "QM2_DuyenHai3_MR_24Chuky" } },
-
-                // Chi phí
-                { "Cspot1", new[] { "Cspot_PhúMỹ" } },
-                { "Cspot2_ThaiBinh", new[] { "Cspot_ThaiBinh" } },
-                { "Cspot2_VinhTan4", new[] { "Cspot_VinhTan4" } },
-                { "Cspot2_VinhTan4_MR", new[] { "Cspot_VinhTan4_MR" } },
-                { "Cspot2_DuyenHai3_MR", new[] { "Csport_DuyenHai3_MR" } }
-            };
-
             var qm2Parts = new[] { "QM2_ThaiBinh", "QM2_VinhTan4", "QM2_VinhTan4_MR", "QM2_DuyenHai3_MR" };
             var cspot2Parts = new[] { "Cspot2_ThaiBinh", "Cspot2_VinhTan4", "Cspot2_VinhTan4_MR", "Cspot2_DuyenHai3_MR" };
 
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            // Load dữ liệu
             var data = new Dictionary<string, DataTable>();
-            foreach (var kv in tongHopTables)
+
+            // QM1 (dùng Chuki)
+            try
             {
                 var dt = new DataTable();
-                using var cmd = new SqlCommand($"SELECT Ngày, Tổng FROM [{kv.Value[0]}]", conn);
+                using var cmd = new SqlCommand("SELECT Chuki AS Ngày, Tổng FROM [QM1_24Chuky]", conn);
                 using var adapter = new SqlDataAdapter(cmd);
                 adapter.Fill(dt);
-                data[kv.Key] = dt;
+                data["QM1"] = dt;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("❌ Lỗi khi đọc bảng QM1_24Chuky", ex);
             }
 
+            // QM2 thành phần
+            data["QM2_ThaiBinh"] = await LoadTableAsync(conn, "QM2_ThaiBinh_24Chuky");
+            data["QM2_VinhTan4"] = await LoadTableAsync(conn, "QM2_VinhTan4_24Chuky");
+            data["QM2_VinhTan4_MR"] = await LoadTableAsync(conn, "QM2_VinhTan4_MR_24Chuky");
+            data["QM2_DuyenHai3_MR"] = await LoadTableAsync(conn, "QM2_DuyenHai3_MR_24Chuky");
+
+            // Cspot chi phí
+            data["Cspot1"] = await LoadTableAsync(conn, "Cspot_PhúMỹ");
+            data["Cspot2_ThaiBinh"] = await LoadTableAsync(conn, "Cspot_ThaiBinh");
+            data["Cspot2_VinhTan4"] = await LoadTableAsync(conn, "Cspot_VinhTan4");
+            data["Cspot2_VinhTan4_MR"] = await LoadTableAsync(conn, "Cspot_VinhTan4_MR");
+            data["Cspot2_DuyenHai3_MR"] = await LoadTableAsync(conn, "Csport_DuyenHai3_MR");
             // Lấy danh sách tất cả ngày
             var allDays = data.Values
                 .SelectMany(dt => dt.AsEnumerable().Select(r => r["Ngày"].ToString()))
@@ -312,6 +241,23 @@ namespace ECOIT.ElectricMarket.Application.Services
             }
 
             string FormatNum(double num) => num.ToString("#,0", CultureInfo.InvariantCulture);
+        }
+
+
+        private async Task<DataTable> LoadTableAsync(SqlConnection conn, string tableName)
+        {
+            var dt = new DataTable();
+            try
+            {
+                using var cmd = new SqlCommand($"SELECT Ngày, Tổng FROM [{tableName}]", conn);
+                using var adapter = new SqlDataAdapter(cmd);
+                adapter.Fill(dt);
+                return dt;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"❌ Lỗi khi đọc bảng {tableName}: {ex.Message}", ex);
+            }
         }
 
 
