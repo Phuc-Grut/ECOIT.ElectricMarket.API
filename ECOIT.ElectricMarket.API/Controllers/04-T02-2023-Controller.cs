@@ -97,5 +97,12 @@ namespace ECOIT.ElectricMarket.API.Controllers
             await _csport.CalculateCsport1(tableName, province);
             return Ok("Tính Cspot thành công");
         }
+
+        [HttpPost("calculate-tonghop-csport")]
+        public async Task<IActionResult> CalculateTongHop()
+        {
+            await _csport.CreateTongHopCsportAsync();
+            return Ok("Tính tổng hợp Cspot thành công");
+        }
     }
 }

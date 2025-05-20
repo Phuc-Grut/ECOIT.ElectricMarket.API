@@ -9,5 +9,6 @@ namespace ECOIT.ElectricMarket.Application.Interface
     public interface ICsport
     {
         Task CalculateCsport1(string tbaleName, string province);
+        Task CreateTongHopCsportAsync();
     }
 }
