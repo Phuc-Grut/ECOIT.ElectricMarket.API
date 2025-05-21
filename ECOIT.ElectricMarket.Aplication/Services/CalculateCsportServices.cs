@@ -130,7 +130,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             try
             {
                 var dt = new DataTable();
-                using var cmd = new SqlCommand("SELECT Chuki AS Ngày, Tổng FROM [QM1_24Chuky]", conn);
+                using var cmd = new SqlCommand("SELECT Chukì AS Ngày, Tổng FROM [QM1_24Chuky]", conn);
                 using var adapter = new SqlDataAdapter(cmd);
                 adapter.Fill(dt);
                 data["QM1"] = dt;
@@ -249,7 +249,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             var dt = new DataTable();
             try
             {
-                using var cmd = new SqlCommand($"SELECT Ngày, Tổng FROM [{tableName}]", conn);
+                using var cmd = new SqlCommand($"SELECT Chukì, Tổng FROM [{tableName}]", conn);
                 using var adapter = new SqlDataAdapter(cmd);
                 adapter.Fill(dt);
                 return dt;
