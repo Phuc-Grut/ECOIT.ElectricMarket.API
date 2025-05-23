@@ -151,12 +151,13 @@ namespace ECOIT.ElectricMarket.Application.Services
             data["Cspot2_ThaiBinh"] = await LoadTableAsync(conn, "Cspot_ThaiBinh");
             data["Cspot2_VinhTan4"] = await LoadTableAsync(conn, "Cspot_VinhTan4");
             data["Cspot2_VinhTan4_MR"] = await LoadTableAsync(conn, "Cspot_VinhTan4_MR");
-            data["Cspot2_DuyenHai3_MR"] = await LoadTableAsync(conn, "Csport_DuyenHai3_MR");
+            data["Cspot2_DuyenHai3_MR"] = await LoadTableAsync(conn, "Cspot_DuyenHai3_MR");
             // Lấy danh sách tất cả ngày
-            var allDays = data.Values
-                .SelectMany(dt => dt.AsEnumerable().Select(r => r["Ngày"].ToString()))
+            var allDays = data["Cspot1"].AsEnumerable()
+                .Select(r => r["Ngày"].ToString())
+                .Where(d => !string.IsNullOrWhiteSpace(d))
                 .Distinct()
-                .OrderBy(d => d)
+                .OrderBy(d => DateTime.ParseExact(d, "d/M/yyyy", CultureInfo.InvariantCulture))
                 .ToList();
 
             var result = new DataTable();
@@ -249,7 +250,10 @@ namespace ECOIT.ElectricMarket.Application.Services
             var dt = new DataTable();
             try
             {
-                using var cmd = new SqlCommand($"SELECT Chukì, Tổng FROM [{tableName}]", conn);
+                var isQM = tableName.StartsWith("QM", StringComparison.OrdinalIgnoreCase);
+                var timeColumn = isQM ? "Chukì" : "Ngày";
+
+                using var cmd = new SqlCommand($"SELECT {timeColumn} AS Ngày, Tổng FROM [{tableName}]", conn);
                 using var adapter = new SqlDataAdapter(cmd);
                 adapter.Fill(dt);
                 return dt;
@@ -259,6 +263,7 @@ namespace ECOIT.ElectricMarket.Application.Services
                 throw new Exception($"❌ Lỗi khi đọc bảng {tableName}: {ex.Message}", ex);
             }
         }
+
 
 
     }

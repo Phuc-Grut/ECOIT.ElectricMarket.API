@@ -441,7 +441,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             }
 
             var dtX2 = new DataTable();
-            using (var adapter = new SqlDataAdapter($"SELECT * FROM [{tableName}]", conn))
+            using (var adapter = new SqlDataAdapter($"SELECT * FROM QM1_PhuTaiENV", conn))
             {
                 adapter.Fill(dtX2);
             }
