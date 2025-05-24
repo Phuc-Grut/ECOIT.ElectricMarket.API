@@ -58,7 +58,8 @@ namespace ECOIT.ElectricMarket.Application.Services
                 var pmRow = dtPm.Rows[i];
                 var qmRow = dtCalcu.Rows[i];
 
-                var day = NormalizeDate(qmRow["Chukì"]?.ToString());
+                var day = qmRow["Ngày"]?.ToString();
+
                 var newRow = dtResult.NewRow();
                 newRow["Ngày"] = day;
 
@@ -114,8 +115,6 @@ namespace ECOIT.ElectricMarket.Application.Services
                 : input ?? "";
         }
 
-
-
         public async Task CreateTongHopCsportAsync()
         {
             var qm2Parts = new[] { "QM2_ThaiBinh", "QM2_VinhTan4", "QM2_VinhTan4_MR", "QM2_DuyenHai3_MR" };
@@ -126,7 +125,7 @@ namespace ECOIT.ElectricMarket.Application.Services
 
             var data = new Dictionary<string, DataTable>();
 
-            // QM1 (dùng Chuki)
+            // QM1
             try
             {
                 var dt = new DataTable();
@@ -140,19 +139,19 @@ namespace ECOIT.ElectricMarket.Application.Services
                 throw new Exception("❌ Lỗi khi đọc bảng QM1_24Chuky", ex);
             }
 
-            // QM2 thành phần
+            // QM2
             data["QM2_ThaiBinh"] = await LoadTableAsync(conn, "QM2_ThaiBinh_24Chuky");
             data["QM2_VinhTan4"] = await LoadTableAsync(conn, "QM2_VinhTan4_24Chuky");
             data["QM2_VinhTan4_MR"] = await LoadTableAsync(conn, "QM2_VinhTan4_MR_24Chuky");
             data["QM2_DuyenHai3_MR"] = await LoadTableAsync(conn, "QM2_DuyenHai3_MR_24Chuky");
 
-            // Cspot chi phí
+            // Cspot
             data["Cspot1"] = await LoadTableAsync(conn, "Cspot_PhúMỹ");
             data["Cspot2_ThaiBinh"] = await LoadTableAsync(conn, "Cspot_ThaiBinh");
             data["Cspot2_VinhTan4"] = await LoadTableAsync(conn, "Cspot_VinhTan4");
             data["Cspot2_VinhTan4_MR"] = await LoadTableAsync(conn, "Cspot_VinhTan4_MR");
             data["Cspot2_DuyenHai3_MR"] = await LoadTableAsync(conn, "Cspot_DuyenHai3_MR");
-            // Lấy danh sách tất cả ngày
+
             var allDays = data["Cspot1"].AsEnumerable()
                 .Select(r => r["Ngày"].ToString())
                 .Where(d => !string.IsNullOrWhiteSpace(d))
@@ -171,7 +170,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             foreach (var col in columns)
                 result.Columns.Add(col, typeof(string));
 
-            // Gộp dữ liệu theo ngày
+
             foreach (var day in allDays)
             {
                 var row = result.NewRow();
@@ -199,7 +198,6 @@ namespace ECOIT.ElectricMarket.Application.Services
                 result.Rows.Add(row);
             }
 
-            // Tính dòng tổng
             var totalRow = result.NewRow();
             totalRow["Ngày"] = "Tổng";
             foreach (DataColumn col in result.Columns)
@@ -214,7 +212,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             }
             result.Rows.Add(totalRow);
 
-            // Ghi vào bảng SQL
+
             using (var drop = new SqlCommand("IF OBJECT_ID('TongHop_Csport', 'U') IS NOT NULL DROP TABLE TongHop_Csport", conn))
                 await drop.ExecuteNonQueryAsync();
 
@@ -229,9 +227,7 @@ namespace ECOIT.ElectricMarket.Application.Services
 
             await bulk.WriteToServerAsync(result);
 
-            // =======================
-            // Helper methods
-            // =======================
+
             double GetValue(Dictionary<string, DataTable> dataMap, string key, string day)
             {
                 if (!dataMap.TryGetValue(key, out var dt)) return 0;
@@ -263,8 +259,6 @@ namespace ECOIT.ElectricMarket.Application.Services
                 throw new Exception($"❌ Lỗi khi đọc bảng {tableName}: {ex.Message}", ex);
             }
         }
-
-
 
     }
 }

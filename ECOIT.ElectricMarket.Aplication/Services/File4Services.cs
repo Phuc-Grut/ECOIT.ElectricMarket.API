@@ -210,50 +210,57 @@ namespace ECOIT.ElectricMarket.Application.Services
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            // Clone schema từ bảng QM1_48Chuky
             var dtSchema = new DataTable();
             using (var adapter = new SqlDataAdapter("SELECT TOP 1 * FROM QM1_48Chuky", conn))
             {
                 adapter.FillSchema(dtSchema, SchemaType.Source);
             }
+ 
+            var dtResult = new DataTable();
+            dtResult.Columns.Add("Chukì", typeof(DateTime));
+            dtResult.Columns.Add("Col2", typeof(object));
 
-            var dtResult = dtSchema.Clone();
+            foreach (DataColumn col in dtSchema.Columns)
+            {
+                if (col.ColumnName != "Chukì" && col.ColumnName != "Col2")
+                    dtResult.Columns.Add(col.ColumnName, typeof(decimal));
+            }
 
             if (!dtResult.Columns.Contains("Tổng"))
-                dtResult.Columns.Add("Tổng");
+                dtResult.Columns.Add("Tổng", typeof(string));
 
-            // Dữ liệu X2 theo tỉnh
             var dtSource = new DataTable();
-            var provinceSafe = province.Replace("'", "''"); // tránh injection
+            var provinceSafe = province.Replace("'", "''");
             var sqlX2 = $"SELECT * FROM X2 WHERE [Đơnvị] = N'{provinceSafe}'";
             using (var adapter = new SqlDataAdapter(sqlX2, conn))
             {
                 adapter.Fill(dtSource);
             }
 
-            // Dữ liệu ngày/thứ từ QM1
             var dtNgayThu = new DataTable();
             using (var ngayAdapter = new SqlDataAdapter("SELECT Chukì, Col2 FROM QM1_48Chuky WHERE Chukì <> 'Ngày'", conn))
             {
                 ngayAdapter.Fill(dtNgayThu);
             }
 
-            // Gộp dữ liệu
+            int validRowIndex = 0;
+
             foreach (DataRow row in dtSource.Rows)
             {
-                var newRow = dtResult.NewRow();
+                if (validRowIndex >= dtNgayThu.Rows.Count)
+                    break;
 
-                int rowIndex = dtResult.Rows.Count;
-                if (rowIndex < dtNgayThu.Rows.Count)
+                var chukiStr = dtNgayThu.Rows[validRowIndex]["Chukì"]?.ToString()?.Trim();
+
+                if (!DateTime.TryParseExact(chukiStr, "d/M/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var chukiDate))
                 {
-                    newRow["Chukì"] = dtNgayThu.Rows[rowIndex]["Chukì"];
-                    newRow["Col2"] = dtNgayThu.Rows[rowIndex]["Col2"];
+                    validRowIndex++;
+                    continue;
                 }
-                else
-                {
-                    newRow["Chukì"] = "";
-                    newRow["Col2"] = "";
-                }
+
+                var newRow = dtResult.NewRow();
+                newRow["Chukì"] = chukiDate;
+                newRow["Col2"] = dtNgayThu.Rows[validRowIndex]["Col2"];
 
                 decimal total = 0;
 
@@ -284,25 +291,29 @@ namespace ECOIT.ElectricMarket.Application.Services
 
                 newRow["Tổng"] = Math.Round(total, 2).ToString("N2", CultureInfo.InvariantCulture);
                 dtResult.Rows.Add(newRow);
+                validRowIndex++;
             }
 
-            // Tạo tên bảng dựa trên tên tỉnh (vd: "X2_ThaiBinh")
+            if (dtResult.Rows.Count > 0 && dtResult.Columns["Chukì"] != null)
+            {
+                dtResult = dtResult.AsEnumerable()
+                    .OrderBy(r => r.Field<DateTime?>("Chukì"))
+                    .CopyToDataTable();
+            }
+
             string tableName = "X2_" + RemoveDiacritics(province).Replace(" ", "");
 
-            // Tạo bảng nếu chưa có
             var createTableSql = GenerateCreateTableSql(tableName, dtResult);
             using (var cmdCreate = new SqlCommand(createTableSql, conn))
             {
                 await cmdCreate.ExecuteNonQueryAsync();
             }
 
-            // Truncate bảng
             using (var cmdTruncate = new SqlCommand($"TRUNCATE TABLE [{tableName}]", conn))
             {
                 await cmdTruncate.ExecuteNonQueryAsync();
             }
 
-            // Insert data
             using (var bulkCopy = new SqlBulkCopy(conn))
             {
                 bulkCopy.DestinationTableName = tableName;
@@ -314,6 +325,7 @@ namespace ECOIT.ElectricMarket.Application.Services
                 await bulkCopy.WriteToServerAsync(dtResult);
             }
         }
+
 
         public static string RemoveDiacritics(string text)
         {
@@ -333,23 +345,34 @@ namespace ECOIT.ElectricMarket.Application.Services
         private string GenerateCreateTableSql(string tableName, DataTable schema)
         {
             var columns = new List<string>();
+
             foreach (DataColumn col in schema.Columns)
             {
-                string sqlType = "NVARCHAR(MAX)";
-                if (col.DataType == typeof(int)) sqlType = "INT";
-                else if (col.DataType == typeof(double)) sqlType = "FLOAT";
+                string sqlType;
+
+                if (col.ColumnName == "Chukì")
+                {
+                    sqlType = "DATE";
+                }
+                else
+                {
+                    sqlType = "NVARCHAR(MAX)";
+                    if (col.DataType == typeof(int)) sqlType = "INT";
+                    else if (col.DataType == typeof(double)) sqlType = "FLOAT";
+                }
 
                 columns.Add($"[{col.ColumnName}] {sqlType}");
             }
 
             return $@"
-                IF OBJECT_ID('dbo.{tableName}', 'U') IS NULL
+            IF OBJECT_ID('dbo.{tableName}', 'U') IS NULL
             BEGIN
-            CREATE TABLE dbo.{tableName} (
-                {string.Join(",", columns)}
-            )
+                CREATE TABLE dbo.{tableName} (
+                    {string.Join(",", columns)}
+                )
             END";
         }
+
 
         public async Task CalculateProvinceAsync(string province, string tableName)
         {
@@ -441,7 +464,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             }
 
             var dtX2 = new DataTable();
-            using (var adapter = new SqlDataAdapter($"SELECT * FROM QM1_PhuTaiENV", conn))
+            using (var adapter = new SqlDataAdapter($"SELECT * FROM [{tableName}]", conn))
             {
                 adapter.Fill(dtX2);
             }
@@ -760,8 +783,6 @@ namespace ECOIT.ElectricMarket.Application.Services
             return chuki == "Ngày" || col2 == "Thứ" ||
                    int.TryParse(chuki, out _) || int.TryParse(col2, out _);
         }
-
-        
 
     }
 }
