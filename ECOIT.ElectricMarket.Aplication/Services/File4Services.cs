@@ -652,32 +652,29 @@ namespace ECOIT.ElectricMarket.Application.Services
                 tables[tbl] = dt;
             }
 
-            // ===== TẠO KẾT QUẢ =====
             var resultTable = new DataTable("KQ_" + safeTableName);
             resultTable.Columns.Clear();
 
-            // Thêm cột "Ngày"
+            // add ngày
             if (!resultTable.Columns.Contains("Ngày"))
                 resultTable.Columns.Add("Ngày");
 
-            // Lấy các cột giờ từ bảng đầu tiên
             var timeCols = tables.Values.First().Columns.Cast<DataColumn>()
                 .Where(c => c.ColumnName != "Chukì" && c.ColumnName != "Col2" && c.ColumnName != "Tổng" && c.ColumnName != "Ngày")
                 .Select(c => c.ColumnName)
                 .ToList();
 
-            // Thêm các cột giờ
+            // add giờ
             foreach (var col in timeCols)
             {
                 if (!resultTable.Columns.Contains(col))
                     resultTable.Columns.Add(col);
             }
 
-            // Thêm cột Tổng
+            // add tổng
             if (!resultTable.Columns.Contains("Tổng"))
                 resultTable.Columns.Add("Tổng");
 
-            // Lấy ngày hợp lệ
             var days = tables.Values.First().AsEnumerable()
                 .Where(r => !IsHeaderRow(r))
                 .Select(r => NormalizeDate(
@@ -727,7 +724,6 @@ namespace ECOIT.ElectricMarket.Application.Services
                 resultTable.Rows.Add(newRow);
             }
 
-            // ===== TẠO BẢNG TRÊN SQL =====
             var columnsSql = resultTable.Columns
                 .Cast<DataColumn>()
                 .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
