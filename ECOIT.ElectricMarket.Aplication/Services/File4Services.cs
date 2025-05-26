@@ -352,7 +352,7 @@ namespace ECOIT.ElectricMarket.Application.Services
 
                 if (col.ColumnName == "Chukì")
                 {
-                    sqlType = "DATE";
+                    sqlType = "NVARCHAR(50)";
                 }
                 else
                 {
@@ -551,9 +551,9 @@ namespace ECOIT.ElectricMarket.Application.Services
                 adapter.Fill(dtSource);
             }
 
-            // Tạo bảng kết quả
             var dtResult = new DataTable();
-            dtResult.Columns.Add("Chukì");
+            dtResult.Columns.Add("Chukì", typeof(string));
+
             dtResult.Columns.Add("Col2");
             for (int i = 1; i <= 24; i++)
             {
@@ -565,10 +565,11 @@ namespace ECOIT.ElectricMarket.Application.Services
             {
                 var newRow = dtResult.NewRow();
 
-                newRow["Chukì"] = row["Chukì"];
+                newRow["Chukì"] = NormalizeDate(row["Chukì"]);
+
                 newRow["Col2"] = row["Col2"];
 
-                if (row["Chukì"]?.ToString() == "Ngày" || row["Col2"]?.ToString() == "Thứ")
+                if (row["Chukì"] == "Ngày" || row["Col2"] == "Thứ")
                 {
                     for (int i = 1; i <= 24; i++)
                         newRow[$"{i}h"] = i.ToString();
@@ -599,7 +600,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             var resultTableName = $"QM2_{province}_24Chuky";
 
 
-            // Tạo bảng nếu chưa có
+            // tạo bảng
             var createTableSql = GenerateCreateTableSql(resultTableName, dtResult);
             using (var cmdCreate = new SqlCommand(createTableSql, conn))
             {
@@ -767,13 +768,21 @@ namespace ECOIT.ElectricMarket.Application.Services
 
             return raw;
         }
-        private string NormalizeDate(string? input)
+        private string NormalizeDate(object? input)
         {
-            if (DateTime.TryParseExact(input, new[] { "d/M/yyyy", "dd/MM/yyyy", "M/d/yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
-            {
-                return date.ToString("dd/MM/yyyy");
-            }
-            return input ?? "";
+            if (input == null) return "";
+
+            string raw = input.ToString()?.Trim() ?? "";
+
+            string[] formats = { "dd/MM/yyyy", "d/M/yyyy", "M/d/yyyy", "yyyy-MM-dd" };
+
+            if (DateTime.TryParseExact(raw, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+                return dt.ToString("d/M/yyyy", CultureInfo.InvariantCulture);
+
+            if (DateTime.TryParse(raw, out dt))
+                return dt.ToString("d/M/yyyy", CultureInfo.InvariantCulture);
+
+            return raw;
         }
         private bool IsHeaderRow(DataRow row)
         {

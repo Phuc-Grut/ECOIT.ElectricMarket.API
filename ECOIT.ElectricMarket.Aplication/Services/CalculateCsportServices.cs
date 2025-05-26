@@ -48,9 +48,11 @@ namespace ECOIT.ElectricMarket.Application.Services
                 .ToList();
 
             var dtResult = new DataTable($"Cspot_{province}");
-            dtResult.Columns.Add("Ngày");
+            dtResult.Columns.Add("Ngày", typeof(string));
+
             foreach (var col in timeCols)
                 dtResult.Columns.Add(col);
+
             dtResult.Columns.Add("Tổng");
 
             for (int i = 0; i < Math.Min(dtPm.Rows.Count, dtCalcu.Rows.Count); i++)
@@ -58,8 +60,7 @@ namespace ECOIT.ElectricMarket.Application.Services
                 var pmRow = dtPm.Rows[i];
                 var qmRow = dtCalcu.Rows[i];
 
-                var day = qmRow["Ngày"]?.ToString();
-
+                var day = NormalizeDate(qmRow["Chukì"]);
                 var newRow = dtResult.NewRow();
                 newRow["Ngày"] = day;
 
@@ -72,15 +73,13 @@ namespace ECOIT.ElectricMarket.Application.Services
 
                     var val = pmVal * qmVal;
                     sum += val;
-                    Console.WriteLine($" {day} - [{col}]: PM = {pmVal}, QM = {qmVal} → KQ = {val}");
                     newRow[col] = Math.Round(val).ToString("N0", new CultureInfo("en-US"));
-
                 }
 
                 newRow["Tổng"] = Math.Round(sum).ToString("N0", new CultureInfo("en-US"));
-
                 dtResult.Rows.Add(newRow);
             }
+
 
             var columnsSql = dtResult.Columns
                 .Cast<DataColumn>()
@@ -108,12 +107,23 @@ namespace ECOIT.ElectricMarket.Application.Services
             return input?.Replace(",", "").Trim() ?? "0";
         }
 
-        private string NormalizeDate(string? input)
+        private string NormalizeDate(object? input)
         {
-            return DateTime.TryParse(input, out var dt)
-                ? dt.ToString("dd/MM/yyyy")
-                : input ?? "";
+            if (input == null) return "";
+
+            string raw = input.ToString()?.Trim() ?? "";
+
+            string[] formats = { "dd/MM/yyyy", "d/M/yyyy", "M/d/yyyy", "yyyy-MM-dd" };
+
+            if (DateTime.TryParseExact(raw, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+                return dt.ToString("d/M/yyyy", CultureInfo.InvariantCulture);
+
+            if (DateTime.TryParse(raw, out dt))
+                return dt.ToString("d/M/yyyy", CultureInfo.InvariantCulture);
+
+            return raw;
         }
+
 
         public async Task CreateTongHopCsportAsync()
         {
@@ -163,9 +173,13 @@ namespace ECOIT.ElectricMarket.Application.Services
             result.Columns.Add("Ngày", typeof(string));
             var columns = new[]
             {
-                "QM1", "QM2", "QM",
-                "Cspot1", "Cspot2", "Tong_Cspot"
-            }.Concat(qm2Parts).Concat(cspot2Parts).ToArray();
+                "QM", "QM1", "QM2",
+                "QM2_ThaiBinh", "QM2_VinhTan4", "QM2_VinhTan4_MR", "QM2_DuyenHai3_MR",
+                "Cspot1", "Cspot2",
+                "Cspot2_ThaiBinh", "Cspot2_VinhTan4", "Cspot2_VinhTan4_MR", "Cspot2_DuyenHai3_MR",
+                "Tong_Cspot"
+            };
+
 
             foreach (var col in columns)
                 result.Columns.Add(col, typeof(string));
