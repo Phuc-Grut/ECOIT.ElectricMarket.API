@@ -401,7 +401,11 @@ namespace ECOIT.ElectricMarket.Application.Services
 
                     if (colName == "Chukì" || colName == "Col2" || colName == "Tổng")
                     {
-                        newRow[colName] = row[colName];
+                        if (colName == "Chukì")
+                            newRow["Chukì"] = NormalizeDate(row["Chukì"]);
+                        else
+                            newRow[colName] = row[colName];
+
                         continue;
                     }
 
@@ -489,7 +493,11 @@ namespace ECOIT.ElectricMarket.Application.Services
                     if (colName == "Chukì" || colName == "Col2")
                     {
                         if (rowX2 != null && dtX2.Columns.Contains(colName))
-                            newRow[colName] = rowX2[colName];
+                            if (colName == "Chukì")
+                                newRow["Chukì"] = NormalizeDate(rowX2["Chukì"]);
+                            else
+                                newRow["Col2"] = rowX2["Col2"]; 
+
                         else
                             newRow[colName] = DBNull.Value;
                         continue;

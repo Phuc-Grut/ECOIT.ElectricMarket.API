@@ -16,6 +16,7 @@ builder.Services.AddScoped<ICaculateServices, CaculateServices>();
 builder.Services.AddScoped<ICalculateTableServices, CalculateTableServices>();
 builder.Services.AddScoped<IFile4Services, File4Services>();
 builder.Services.AddScoped<ICsport, CalculateCsportServices>();
+builder.Services.AddScoped<IFile3Services, File3Services>();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
