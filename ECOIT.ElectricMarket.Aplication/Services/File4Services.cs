@@ -1,14 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.SqlClient;
-using System.Data;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
+﻿using ECOIT.ElectricMarket.Application.DTO;
 using ECOIT.ElectricMarket.Application.Interface;
-using ECOIT.ElectricMarket.Application.DTO;
+using Microsoft.Extensions.Configuration;
+using System.Data;
+using System.Data.SqlClient;
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace ECOIT.ElectricMarket.Application.Services
@@ -215,7 +211,7 @@ namespace ECOIT.ElectricMarket.Application.Services
             {
                 adapter.FillSchema(dtSchema, SchemaType.Source);
             }
- 
+
             var dtResult = new DataTable();
             dtResult.Columns.Add("Chukì", typeof(DateTime));
             dtResult.Columns.Add("Col2", typeof(object));
@@ -326,7 +322,6 @@ namespace ECOIT.ElectricMarket.Application.Services
             }
         }
 
-
         public static string RemoveDiacritics(string text)
         {
             string normalized = text.Normalize(NormalizationForm.FormD);
@@ -372,7 +367,6 @@ namespace ECOIT.ElectricMarket.Application.Services
                 )
             END";
         }
-
 
         public async Task CalculateProvinceAsync(string province, string tableName)
         {
@@ -496,8 +490,7 @@ namespace ECOIT.ElectricMarket.Application.Services
                             if (colName == "Chukì")
                                 newRow["Chukì"] = NormalizeDate(rowX2["Chukì"]);
                             else
-                                newRow["Col2"] = rowX2["Col2"]; 
-
+                                newRow["Col2"] = rowX2["Col2"];
                         else
                             newRow[colName] = DBNull.Value;
                         continue;
@@ -606,7 +599,6 @@ namespace ECOIT.ElectricMarket.Application.Services
                 dtResult.Rows.Add(newRow);
             }
             var resultTableName = $"QM2_{province}_24Chuky";
-
 
             // tạo bảng
             var createTableSql = GenerateCreateTableSql(resultTableName, dtResult);
@@ -751,7 +743,6 @@ namespace ECOIT.ElectricMarket.Application.Services
             await bulkCopy.WriteToServerAsync(resultTable);
         }
 
-
         private string NormalizeNumber(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return "0";
@@ -772,6 +763,7 @@ namespace ECOIT.ElectricMarket.Application.Services
 
             return raw;
         }
+
         private string NormalizeDate(object? input)
         {
             if (input == null) return "";
@@ -788,6 +780,7 @@ namespace ECOIT.ElectricMarket.Application.Services
 
             return raw;
         }
+
         private bool IsHeaderRow(DataRow row)
         {
             var chuki = row.Table.Columns.Contains("Chukì") ? row["Chukì"]?.ToString()?.Trim() : null;
@@ -796,6 +789,5 @@ namespace ECOIT.ElectricMarket.Application.Services
             return chuki == "Ngày" || col2 == "Thứ" ||
                    int.TryParse(chuki, out _) || int.TryParse(col2, out _);
         }
-
     }
 }

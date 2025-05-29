@@ -1,14 +1,9 @@
-﻿using ECOIT.ElectricMarket.Application.DTO;
-using ECOIT.ElectricMarket.Application.Interface;
+﻿using ECOIT.ElectricMarket.Application.Interface;
 using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace ECOIT.ElectricMarket.Application.Services
 {
@@ -163,5 +158,189 @@ namespace ECOIT.ElectricMarket.Application.Services
             return columns;
         }
 
+        public async Task CalculateMultiTableFormulaAsync(string outputTable, string outputLabel, string formula, List<string> sourceTables)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var safeTableName = Regex.Replace(outputTable, "\\W+", "");
+
+            var checkCmd = new SqlCommand("IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
+            checkCmd.Parameters.AddWithValue("@tableName", safeTableName);
+            var exists = (int)await checkCmd.ExecuteScalarAsync();
+            if (exists == 1) throw new Exception($"Bảng '{safeTableName}' đã tồn tại.");
+
+            var parts = formula.Split('=');
+            if (parts.Length != 2) throw new Exception("Công thức không hợp lệ.");
+            var right = parts[1].Trim();
+
+            var operands = Regex.Split(right, @"[+\-\*/]").Select(x => x.Trim()).ToList();
+            var operators = Regex.Matches(right, @"[+\-\*/]").Cast<Match>().Select(m => m.Value).ToList();
+
+            var tables = new Dictionary<string, DataTable>();
+            foreach (var tbl in sourceTables.Distinct())
+            {
+                var dt = new DataTable();
+                using var cmd = new SqlCommand($"SELECT * FROM [{tbl}]", conn);
+                using var adapter = new SqlDataAdapter(cmd);
+                adapter.Fill(dt);
+
+                if (dt.Rows.Count > 0)
+                {
+                    var firstRow = dt.Rows[0];
+                    if (dt.Columns.Cast<DataColumn>().Any(c => firstRow[c]?.ToString()?.Trim().ToLower() == "ngày"))
+                    {
+                        dt.Rows[0].Delete();
+                        dt.AcceptChanges();
+                    }
+                }
+
+                tables[tbl] = dt;
+            }
+
+            var baseTable = tables[operands[0]];
+            var resultTable = baseTable.Clone();
+            resultTable.Clear();
+
+            for (int rowIndex = 0; rowIndex < baseTable.Rows.Count; rowIndex++)
+            {
+                var row = baseTable.Rows[rowIndex];
+                var newRow = resultTable.NewRow();
+
+                foreach (DataColumn col in baseTable.Columns)
+                {
+                    var colName = col.ColumnName;
+
+                    if (colName == "Chukì")
+                    {
+                        newRow[colName] = NormalizeDate(row[colName]);
+                        continue;
+                    }
+                    if (colName == "Col2")
+                    {
+                        newRow[colName] = row[colName];
+                        continue;
+                    }
+
+                    if (colName == "Tổng") continue;
+
+                    decimal result = 0;
+
+                    for (int i = 0; i < operands.Count; i++)
+                    {
+                        var operandTable = tables[operands[i]];
+                        decimal value = 0;
+
+                        if (operandTable.Columns.Contains(colName) && operandTable.Rows.Count > rowIndex)
+                        {
+                            var obj = operandTable.Rows[rowIndex][colName];
+                            decimal.TryParse(obj?.ToString(), out value);
+                        }
+
+                        if (i == 0)
+                            result = value;
+                        else
+                        {
+                            var op = operators[i - 1];
+                            result = op switch
+                            {
+                                "+" => result + value,
+                                "-" => result - value,
+                                "*" => result * value,
+                                "/" => value != 0 ? result / value : 0,
+                                _ => result
+                            };
+                        }
+                    }
+
+                    newRow[colName] = result.ToString("#,##0", CultureInfo.InvariantCulture);
+                }
+
+                decimal totalRow = 0;
+                foreach (DataColumn col in baseTable.Columns)
+                {
+                    var colName = col.ColumnName;
+                    if (colName == "Chukì" || colName == "Col2" || colName == "Tổng") continue;
+
+                    var valStr = newRow[colName]?.ToString();
+                    if (decimal.TryParse(valStr?.Replace(",", ""), out var val))
+                    {
+                        totalRow += val;
+                    }
+                }
+                newRow["Tổng"] = totalRow.ToString("#,##0", CultureInfo.InvariantCulture);
+
+                resultTable.Rows.Add(newRow);
+            }
+
+            var columnsSql = resultTable.Columns
+                .Cast<DataColumn>()
+                .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
+            var createSql = $"CREATE TABLE [{safeTableName}] ({string.Join(", ", columnsSql)})";
+            using var createCmd = new SqlCommand(createSql, conn);
+            await createCmd.ExecuteNonQueryAsync();
+
+            using var bulkCopy = new SqlBulkCopy(conn)
+            {
+                DestinationTableName = safeTableName
+            };
+            foreach (DataColumn col in resultTable.Columns)
+                bulkCopy.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+            await bulkCopy.WriteToServerAsync(resultTable);
+        }
+
+        public async Task ExtractSundayRowsAsync(string sourceTable, string targetTable)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var safeSource = Regex.Replace(sourceTable, @"[^\w]", "");
+            var safeTarget = Regex.Replace(targetTable, @"[^\w]", "");
+
+            var checkTableCmd = new SqlCommand(
+                $"IF OBJECT_ID('{safeTarget}', 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
+
+            var exists = (int)await checkTableCmd.ExecuteScalarAsync();
+
+            if (exists == 0)
+            {
+                var createCmd = new SqlCommand($@"
+                SELECT * INTO [{safeTarget}]
+                FROM [{safeSource}]
+                WHERE Col2 = 'Sunday'
+                ", conn);
+                await createCmd.ExecuteNonQueryAsync();
+            }
+            else
+            {
+                var insertCmd = new SqlCommand($@"
+                INSERT INTO [{safeTarget}]
+                SELECT * FROM [{safeSource}]
+                WHERE Col2 = 'Sunday'
+                AND NOT EXISTS (
+                SELECT 1 FROM [{safeTarget}]
+                WHERE [{safeTarget}].Chukì = [{safeSource}].Chukì
+                )
+                ", conn);
+                await insertCmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        private string NormalizeDate(object? input)
+        {
+            if (input == null) return "";
+
+            string raw = input.ToString()?.Trim() ?? "";
+
+            string[] formats = { "dd/MM/yyyy", "d/M/yyyy", "M/d/yyyy", "yyyy-MM-dd" };
+
+            if (DateTime.TryParseExact(raw, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+                return dt.ToString("d/M/yyyy", CultureInfo.InvariantCulture);
+
+            if (DateTime.TryParse(raw, out dt))
+                return dt.ToString("d/M/yyyy", CultureInfo.InvariantCulture);
+
+            return raw;
+        }
     }
 }

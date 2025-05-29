@@ -1,11 +1,7 @@
 ﻿using ECOIT.ElectricMarket.Aplication.Interface;
 using ECOIT.ElectricMarket.Application.DTO;
 using ECOIT.ElectricMarket.Application.Interface;
-using ECOIT.ElectricMarket.Application.Services;
 using Microsoft.AspNetCore.Mvc;
-using System.Data;
-using System.Data.SqlClient;
-using System.Globalization;
 
 namespace ECOIT.ElectricMarket.API.Controllers
 {
@@ -18,7 +14,7 @@ namespace ECOIT.ElectricMarket.API.Controllers
         private readonly IFile4Services _file4Services;
         private readonly ICsport _csport;
 
-        public _04_T02_2023_Controller(ICsport csport , IDynamicTableService dynamicTableService, IConfiguration configuration, IFile4Services file4Services)
+        public _04_T02_2023_Controller(ICsport csport, IDynamicTableService dynamicTableService, IConfiguration configuration, IFile4Services file4Services)
         {
             _dynamicTableService = dynamicTableService;
             _configuration = configuration;
@@ -74,7 +70,6 @@ namespace ECOIT.ElectricMarket.API.Controllers
             await _file4Services.CalculateQM2_24ChukyAsync(province, tableName);
 
             return Ok($"Tính QM2 {province} 24 chu kỳ thành công");
-              
         }
 
         [HttpPost("calculate-qm-tong-hop")]
