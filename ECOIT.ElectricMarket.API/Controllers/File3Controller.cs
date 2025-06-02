@@ -1,4 +1,6 @@
-﻿using ECOIT.ElectricMarket.Application.Interface;
+﻿using ECOIT.ElectricMarket.Application.DTO;
+using ECOIT.ElectricMarket.Application.Interface;
+using ECOIT.ElectricMarket.Application.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECOIT.ElectricMarket.API.Controllers
@@ -8,10 +10,12 @@ namespace ECOIT.ElectricMarket.API.Controllers
     public class File3Controller : ControllerBase
     {
         private readonly IFile3Services _file3Services;
+        private readonly ICalculateTableServices _calculateTable;
 
-        public File3Controller(IFile3Services file3Services)
+        public File3Controller(IFile3Services file3Services, ICalculateTableServices calculateTable)
         {
             _file3Services = file3Services;
+            _calculateTable = calculateTable;
         }
 
         [HttpPost("Tinh3Gia")]
@@ -49,6 +53,44 @@ namespace ECOIT.ElectricMarket.API.Controllers
         {
             await _file3Services.ExtractSundayRowsAsync("Qbst_QNTT", "SanLuongChuNhat_Qbst_Qntt");
             return Ok("Đã trích xuất các hàng Chủ Nhật từ Qbst_QNTT sang SanLuongChuNhat_Qbst_Qntt.");
+        }
+
+        [HttpPost("Calculate-SanluongNTT")]
+        public async Task<IActionResult> SanluongNTT()
+        {
+            try
+            {
+                await _file3Services.CalculateSanluongNTT(
+                    table1: "QL_BST",
+                    table2: "TylemuaNTT",
+                    outputTable: "SanluongNTT");
+
+                return Ok("Đã tính xong FMP");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("Calculate-SanluongBTS")]
+        public async Task<IActionResult> SanluongBTS()
+        {
+            try
+            {
+                await _file3Services.CalculateSanluongBTS
+                (
+                    table1: "Qbst_QNTT",
+                    table2: "SanluongNTT",
+                    outputTable: "SanluongBTS"
+                );
+
+                return Ok("Đã tính xong SanluongBTS");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
     }
 }

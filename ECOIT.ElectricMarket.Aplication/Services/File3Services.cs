@@ -342,5 +342,161 @@ namespace ECOIT.ElectricMarket.Application.Services
 
             return raw;
         }
+
+        public async Task CalculateSanluongNTT(string table1, string table2, string outputTable)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var dt1 = new DataTable();
+            using (var cmd1 = new SqlCommand($"SELECT * FROM [{table1}]", conn))
+            using (var ad1 = new SqlDataAdapter(cmd1))
+            {
+                ad1.Fill(dt1);
+            }
+
+            var dt2 = new DataTable();
+            using (var cmd2 = new SqlCommand($"SELECT * FROM [{table2}]", conn))
+            using (var ad2 = new SqlDataAdapter(cmd2))
+            {
+                ad2.Fill(dt2);
+            }
+
+            var result = new DataTable();
+            result.Columns.Add("Ngày");
+            result.Columns.Add("Thứ");
+
+            var timeCols = dt1.Columns.Cast<DataColumn>()
+                .Where(c => c.ColumnName != "Ngày" && c.ColumnName != "Thứ")
+                .Select(c => c.ColumnName)
+                .ToList();
+
+            foreach (var col in timeCols)
+                result.Columns.Add(col, typeof(string));
+
+            foreach (DataRow row1 in dt1.Rows)
+            {
+                var date = row1["Ngày"].ToString();
+                var row2 = dt2.AsEnumerable().FirstOrDefault(r => r["Ngày"].ToString() == date);
+                if (row2 == null) continue;
+
+                var newRow = result.NewRow();
+                newRow["Ngày"] = date;
+                newRow["Thứ"] = row1["Thứ"]?.ToString();
+
+                foreach (var col in timeCols)
+                {
+                    double.TryParse(row1[col]?.ToString(), out double val1);
+                    double.TryParse(row2[col]?.ToString(), out double val2);
+                    var product = val1 * val2;
+                    newRow[col] = product.ToString("0.###", CultureInfo.InvariantCulture);
+                }
+
+                result.Rows.Add(newRow);
+            }
+
+            var columnsSql = result.Columns
+                .Cast<DataColumn>()
+                .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
+            var createSql = $"CREATE TABLE [{outputTable}] ({string.Join(", ", columnsSql)})";
+            using (var createCmd = new SqlCommand(createSql, conn))
+            {
+                await createCmd.ExecuteNonQueryAsync();
+            }
+
+            using var bulk = new SqlBulkCopy(conn) { DestinationTableName = outputTable };
+            foreach (DataColumn col in result.Columns)
+            {
+                bulk.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+            }
+            await bulk.WriteToServerAsync(result);
+        }
+
+        public async Task CalculateSanluongBTS(string table1, string table2, string outputTable)
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var dt1 = new DataTable();
+            using (var cmd1 = new SqlCommand($"SELECT * FROM [{table1}]", conn))
+            using (var ad1 = new SqlDataAdapter(cmd1))
+            {
+                ad1.Fill(dt1);
+            }
+
+            var dt2 = new DataTable();
+            using (var cmd2 = new SqlCommand($"SELECT * FROM [{table2}]", conn))
+            using (var ad2 = new SqlDataAdapter(cmd2))
+            {
+                ad2.Fill(dt2);
+            }
+
+            if (dt1.Columns.Contains("Chukì"))
+                dt1.Columns["Chukì"].ColumnName = "Ngày";
+            if (dt1.Columns.Contains("Col2"))
+                dt1.Columns["Col2"].ColumnName = "Thứ";
+            if (dt2.Columns.Contains("Col2"))
+                dt2.Columns["Col2"].ColumnName = "Thứ";
+
+            foreach (DataRow row in dt1.Rows)
+            {
+                if (DateTime.TryParseExact(row["Ngày"]?.ToString(), "d/M/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+                    row["Ngày"] = d.ToString("yyyy-MM-dd");
+            }
+
+            foreach (DataRow row in dt2.Rows)
+            {
+                if (DateTime.TryParseExact(row["Ngày"]?.ToString(), "M/d/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+                    row["Ngày"] = d.ToString("yyyy-MM-dd");
+            }
+
+            var result = new DataTable();
+            result.Columns.Add("Ngày");
+            result.Columns.Add("Thứ");
+
+            var timeCols = dt1.Columns.Cast<DataColumn>()
+                .Where(c => c.ColumnName != "Ngày" && c.ColumnName != "Thứ")
+                .Select(c => c.ColumnName)
+                .ToList();
+
+            foreach (var col in timeCols)
+                result.Columns.Add(col, typeof(string));
+
+            foreach (DataRow row1 in dt1.Rows)
+            {
+                var date = row1["Ngày"]?.ToString();
+                var row2 = dt2.AsEnumerable().FirstOrDefault(r => r["Ngày"]?.ToString() == date);
+
+                var newRow = result.NewRow();
+                newRow["Ngày"] = NormalizeDate(date);
+                newRow["Thứ"] = row1["Thứ"]?.ToString();
+
+                foreach (var col in timeCols)
+                {
+                    double.TryParse(row1[col]?.ToString(), out double val1);
+                    double.TryParse(row2[col]?.ToString(), out double val2);
+                    var product = val1 - val2;
+                    newRow[col] = product.ToString("#,##0", CultureInfo.InvariantCulture);
+                }
+
+                result.Rows.Add(newRow);
+            }
+
+            var columnsSql = result.Columns
+                .Cast<DataColumn>()
+                .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
+            var createSql = $"CREATE TABLE [{outputTable}] ({string.Join(", ", columnsSql)})";
+            using (var createCmd = new SqlCommand(createSql, conn))
+            {
+                await createCmd.ExecuteNonQueryAsync();
+            }
+
+            using var bulk = new SqlBulkCopy(conn) { DestinationTableName = outputTable };
+            foreach (DataColumn col in result.Columns)
+            {
+                bulk.ColumnMappings.Add(col.ColumnName, col.ColumnName);
+            }
+            await bulk.WriteToServerAsync(result);
+        }
     }
 }
