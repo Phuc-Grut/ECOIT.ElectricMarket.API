@@ -100,5 +100,12 @@ namespace ECOIT.ElectricMarket.API.Controllers
             return Ok("Lấy hệ số k thành công");
         }
 
+        [HttpPost("tinh-ty-le")]
+        public async Task<IActionResult> TinhTyLe()
+        {
+            await _file3Services.TinhTyLe();
+            return Ok("Tinh thanh cong");
+        }
+
     }
 }

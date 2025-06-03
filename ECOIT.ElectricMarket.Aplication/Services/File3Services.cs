@@ -536,11 +536,47 @@ namespace ECOIT.ElectricMarket.Application.Services
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            var dtSchema = new DataTable();
-            using (var adapter = new SqlDataAdapter("SELECT * FROM TyLeSanLuong4", conn))
+            var alterCmd = new SqlCommand(@"
+                IF COL_LENGTH('TyLeSanLuong', 'TongSanLuong') IS NULL
+                BEGIN
+                    ALTER TABLE TyLeSanLuong ADD TongSanLuong DECIMAL(18, 3)
+                END
+            ", conn);
+            await alterCmd.ExecuteNonQueryAsync();
+
+            var dt = new DataTable();
+            using (var adapter = new SqlDataAdapter("SELECT * FROM TyLeSanLuong", conn))
             {
-                adapter.FillSchema(dtSchema, SchemaType.Source);
+                adapter.Fill(dt);
             }
+
+            foreach (DataRow row in dt.Rows)
+            {
+                decimal s1 = TryParseDecimal(row["DHAI3MRTBINHVTAN4_SảnlượngMWh"]);
+                decimal s2 = TryParseDecimal(row["S1_SảnlượngMWh"]);
+                decimal s3 = TryParseDecimal(row["S2_SảnlượngMWh"]);
+                decimal tong = s1 + s2 + s3;
+
+                var cmd = new SqlCommand(@"
+                UPDATE TyLeSanLuong
+                SET TongSanLuong = @Tong
+                WHERE Ngày = @Ngay AND ChuKì = @ChuKi", conn);
+
+                cmd.Parameters.AddWithValue("@Tong", tong);
+                cmd.Parameters.AddWithValue("@Ngay", row["Ngày"]);
+                cmd.Parameters.AddWithValue("@ChuKi", row["ChuKì"]);
+
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        private decimal TryParseDecimal(object? value)
+        {
+            if (value == null || value == DBNull.Value)
+                return 0m;
+
+            decimal.TryParse(value.ToString(), out var result);
+            return result;
         }
 
     }

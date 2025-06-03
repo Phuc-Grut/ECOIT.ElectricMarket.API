@@ -9,5 +9,6 @@
         Task CalculateSanluongNTT(string table1, string table2, string outputTable);
         Task CalculateSanluongBTS(string table1, string table2, string outputTable);
         Task CreateHeSoKAsync();
+        Task TinhTyLe();
     }
 }

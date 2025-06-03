@@ -346,15 +346,13 @@ namespace ECOIT.ElectricMarket.Application.Services
             using var conn = new SqlConnection(_connectionString);
             await conn.OpenAsync();
 
-            // Nếu bảng kết quả đã tồn tại thì dừng lại
             var checkResultTableCmd = new SqlCommand(@"
         IF OBJECT_ID(@tableName, 'U') IS NULL SELECT 0 ELSE SELECT 1", conn);
             checkResultTableCmd.Parameters.AddWithValue("@tableName", resultTableName);
             var resultExists = (int)await checkResultTableCmd.ExecuteScalarAsync();
             if (resultExists == 1)
                 throw new Exception($" Bảng '{resultTableName}' đã tồn tại. Pm đã được tính trước đó.");
-
-            // Load dữ liệu từ hai bảng
+            //load dataa
             var dfFMP = new DataTable();
             var dfA0 = new DataTable();
 
@@ -366,7 +364,6 @@ namespace ECOIT.ElectricMarket.Application.Services
             using (var adapter = new SqlDataAdapter(cmd))
                 adapter.Fill(dfA0);
 
-            // Clone cấu trúc bảng và tạo bảng kết quả
             var diffTable = dfFMP.Clone();
             diffTable.TableName = resultTableName;
 
@@ -397,7 +394,6 @@ namespace ECOIT.ElectricMarket.Application.Services
                 diffTable.Rows.Add(newRow);
             }
 
-            // Tạo bảng kết quả trong SQL Server
             var columnsSql = diffTable.Columns
                 .Cast<DataColumn>()
                 .Select(c => $"[{c.ColumnName}] NVARCHAR(MAX)");
