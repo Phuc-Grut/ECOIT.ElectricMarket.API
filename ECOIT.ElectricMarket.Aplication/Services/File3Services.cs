@@ -498,5 +498,50 @@ namespace ECOIT.ElectricMarket.Application.Services
             }
             await bulk.WriteToServerAsync(result);
         }
+
+        public async Task CreateHeSoKAsync()
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var dt = new DataTable();
+            using (var cmd = new SqlCommand("SELECT * FROM [NhapgiaNM] WHERE Giá = @gia", conn))
+            {
+                cmd.Parameters.AddWithValue("@gia", "k");
+                using (var adapter = new SqlDataAdapter(cmd))
+                {
+                    adapter.Fill(dt);
+                }
+            }
+
+            using (var cmdCreate = new SqlCommand
+            (@"
+                IF OBJECT_ID('dbo.HeSoK', 'U') IS NOT NULL DROP TABLE dbo.HeSoK;
+
+                SELECT * INTO HeSoK FROM [NhapgiaNM] WHERE 1 = 0;
+                ", conn))
+            {
+                await cmdCreate.ExecuteNonQueryAsync();
+            }
+
+            using (var bulkCopy = new SqlBulkCopy(conn))
+            {
+                bulkCopy.DestinationTableName = "HeSoK";
+                await bulkCopy.WriteToServerAsync(dt);
+            }
+        }
+
+        public async Task TinhTyLe()
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var dtSchema = new DataTable();
+            using (var adapter = new SqlDataAdapter("SELECT * FROM TyLeSanLuong4", conn))
+            {
+                adapter.FillSchema(dtSchema, SchemaType.Source);
+            }
+        }
+
     }
 }

@@ -8,6 +8,6 @@ namespace ECOIT.ElectricMarket.Application.Interface
 {
     public interface ISheetImportHandler
     {
-        Task ImportSheetAsync(Stream fileStream, string sheetName, int headerRow, int startRow, string? tableName = null, int? endRow = null);
+        Task ImportSheetAsync(Stream fileStream, string sheetName, int headerRow, int startRow, string? tableName = null, int? endRow = null, int? maxColCount = null);
     }
 }

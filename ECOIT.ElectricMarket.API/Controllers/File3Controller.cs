@@ -92,5 +92,13 @@ namespace ECOIT.ElectricMarket.API.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
+
+        [HttpPost("create-he-so-k")]
+        public async Task<IActionResult> CreateHeSoK()
+        {
+            await _file3Services.CreateHeSoKAsync();
+            return Ok("Lấy hệ số k thành công");
+        }
+
     }
 }

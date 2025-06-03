@@ -26,13 +26,16 @@ namespace ECOIT.ElectricMarket.API.Controllers
         }
 
         [HttpPost("import-sheet")]
-        public async Task<IActionResult> ImportSheet(
+        public async Task<IActionResult> ImportSheet
+        (
             IFormFile file,
             [FromQuery] string selectedSheet,
             [FromQuery] int headerRow,
             [FromQuery] int startRow,
             [FromQuery] string? sheetName,
-            [FromQuery] int? endRow = null)
+            [FromQuery] int? endRow = null,
+            [FromQuery] int? maxColCount = null
+        )
         {
             try
             {
@@ -46,7 +49,7 @@ namespace ECOIT.ElectricMarket.API.Controllers
 
                 var tableName = string.IsNullOrWhiteSpace(sheetName) ? selectedSheet : sheetName;
 
-                await _importHandler.ImportSheetAsync(stream, selectedSheet, headerRow, startRow, tableName, endRow);
+                await _importHandler.ImportSheetAsync(stream, selectedSheet, headerRow, startRow, tableName, endRow, maxColCount);
 
                 return Ok(new { message = $"Đã import sheet '{selectedSheet}' vào bảng '{tableName}' thành công." });
             }

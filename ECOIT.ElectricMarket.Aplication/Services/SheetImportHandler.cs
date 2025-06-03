@@ -33,7 +33,7 @@ public class SheetImportHandler : ISheetImportHandler
         return sb.ToString().Normalize(NormalizationForm.FormC);
     }
 
-    public async Task ImportSheetAsync(Stream fileStream, string sheetName, int headerRow, int startRow, string? tableName = null, int? endRow = null)
+    public async Task ImportSheetAsync(Stream fileStream, string sheetName, int headerRow, int startRow, string? tableName = null, int? endRow = null, int? maxColCount = null)
     {
         ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
         using var package = new ExcelPackage(fileStream);
@@ -42,12 +42,15 @@ public class SheetImportHandler : ISheetImportHandler
         if (sheet == null)
             throw new Exception($"Không tìm thấy sheet tên '{sheetName}'");
 
-        int endCol = sheet.Dimension.End.Column;
+        int totalCol = sheet.Dimension.End.Column;
+        int endCol = maxColCount.HasValue ? Math.Min(totalCol, maxColCount.Value) : totalCol;
+
         int maxRow = sheet.Dimension.End.Row;
         int actualEndRow = endRow ?? maxRow;
 
         var columns = new List<string>();
         var rawColumnMap = new Dictionary<string, string>();
+        var usedNames = new HashSet<string>();
 
         for (int col = 1; col <= endCol; col++)
         {
@@ -59,11 +62,23 @@ public class SheetImportHandler : ISheetImportHandler
                     parts.Add(text);
             }
 
-            var combined = parts.Count > 0 ? string.Join("_", parts) : $"Col{col}";
-            var normalized = Regex.Replace(combined, @"\W+", "");
+            var shortened = parts.Count >= 2
+                ? $"{parts.First()}_{parts.Last()}"
+                : (parts.FirstOrDefault() ?? $"Col{col}");
 
-            columns.Add(normalized);
-            rawColumnMap[normalized] = combined;
+            var baseName = Regex.Replace(shortened, @"\W+", "");
+
+            string uniqueName = baseName;
+            int suffix = 1;
+            while (usedNames.Contains(uniqueName))
+            {
+                uniqueName = $"{baseName}_{suffix}";
+                suffix++;
+            }
+
+            usedNames.Add(uniqueName);
+            columns.Add(uniqueName);
+            rawColumnMap[uniqueName] = string.Join("_", parts);
         }
 
         var rows = new List<List<string>>();
