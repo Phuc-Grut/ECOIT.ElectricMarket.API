@@ -579,5 +579,147 @@ namespace ECOIT.ElectricMarket.Application.Services
             return result;
         }
 
+
+        public async Task CapNhatHeSoK()
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var alterCmd = new SqlCommand(@"
+                IF COL_LENGTH('TyLeSanLuong', 'HeSoK') IS NULL
+                BEGIN
+                    ALTER TABLE TyLeSanLuong ADD HeSoK DECIMAL(18, 6)
+                END
+            ", conn);
+            await alterCmd.ExecuteNonQueryAsync();
+
+            var dt = new DataTable();
+            using (var adapter = new SqlDataAdapter("SELECT * FROM TyLeSanLuong", conn))
+            {
+                adapter.Fill(dt);
+            }
+
+            foreach (DataRow row in dt.Rows)
+            {
+                if (!DateTime.TryParseExact(
+                    row["Ngày"]?.ToString(),
+                    new[] { "dd/MM/yyyy", "yyyy-MM-dd", "M/d/yyyy", "dd-MMM-yy" },
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var ngay
+                ) || !int.TryParse(row["ChuKì"]?.ToString(), out var chuKy))
+                    continue;
+
+
+                int ngayTrongThang = ngay.Day;
+
+                var getKCmd = new SqlCommand(@"
+                SELECT TOP 1 TRY_CAST(GiaTri AS DECIMAL(18,6)) 
+                FROM (
+                    SELECT *
+                    FROM HeSoK
+                    WHERE TRY_CAST(Ngày AS INT) = @NgayTrongThang
+                ) AS src
+                 UNPIVOT (
+                GiaTri FOR col_name IN (
+                    [0h30_1], [1h_2], [1h30_3], [2h_4], [2h30_5], [3h_6], [3h30_7], 
+                    [4h_8], [4h30_9], [5h_10], [5h30_11], [6h_12], [6h30_13], 
+                    [7h_14], [7h30_15], [8h_16], [8h30_17], [9h_18], [9h30_19], 
+                    [10h_20], [10h30_21], [11h_22], [11h30_23], [12h_24], 
+                    [12h30_25], [13h_26], [13h30_27], [14h_28], [14h30_29], 
+                    [15h_30], [15h30_31], [16h_32], [16h30_33], [17h_34], [17h30_35],
+                    [18h_36], [18h30_37], [19h_38], [19h30_39], [20h_40], [20h30_41],
+                    [21h_42], [21h30_43], [22h_44], [22h30_45], [23h_46], [23h30_47], [24h_48]
+                )
+                    ) AS unpvt
+                    WHERE TRY_CAST(PARSENAME(REPLACE(col_name, '_', '.'), 1) AS INT) = @Chuky
+                ", conn);
+
+                getKCmd.Parameters.AddWithValue("@NgayTrongThang", ngayTrongThang);
+                getKCmd.Parameters.AddWithValue("@Chuky", chuKy);
+
+                var result = await getKCmd.ExecuteScalarAsync();
+                var heSoK = result != null && result != DBNull.Value
+                    ? Convert.ToDecimal(result)
+                    : (decimal?)null;
+
+                // 3. Cập nhật HeSoK vào dòng tương ứng
+                var updateCmd = new SqlCommand(@"
+                UPDATE TyLeSanLuong
+                SET HeSoK = @HeSoK
+                WHERE Ngày = @Ngay AND ChuKì = @ChuKy
+                ", conn);
+
+                updateCmd.Parameters.AddWithValue("@HeSoK", (object?)heSoK ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue("@Ngay", row["Ngày"]);
+                updateCmd.Parameters.AddWithValue("@ChuKy", chuKy);
+
+                await updateCmd.ExecuteNonQueryAsync();
+            }
+        }
+
+
+        public async Task CapNhatCotQLHN_5TCT()
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var alterCmd = new SqlCommand(@"
+         IF COL_LENGTH('TyLeSanLuong', 'QL(HN)/QL (5TCT)') IS NULL
+            BEGIN
+            ALTER TABLE TyLeSanLuong ADD [QL(HN)/QL (5TCT)] DECIMAL(18, 3)
+            END
+            ", conn);
+            await alterCmd.ExecuteNonQueryAsync();
+
+            var updateCmd = new SqlCommand(@"
+            UPDATE TyLeSanLuong
+            SET [QL(HN)/QL (5TCT)] = 0.09
+            ", conn);
+            await updateCmd.ExecuteNonQueryAsync();
+        }
+
+        public async Task CapNhatSanLuongNgoaiTT()
+        {
+            using var conn = new SqlConnection(_connectionString);
+            await conn.OpenAsync();
+
+            var alterCmd = new SqlCommand(@"
+            IF COL_LENGTH('TyLeSanLuong', 'SanLuongNgoaiTT') IS NULL
+            BEGIN
+                ALTER TABLE TyLeSanLuong ADD SanLuongNgoaiTT DECIMAL(18, 3)
+            END
+        ", conn);
+            await alterCmd.ExecuteNonQueryAsync();
+
+            var dt = new DataTable();
+            using (var adapter = new SqlDataAdapter("SELECT * FROM TyLeSanLuong", conn))
+            {
+                adapter.Fill(dt);
+            }
+
+            foreach (DataRow row in dt.Rows)
+            {
+                decimal tong = TryParseDecimal(row["TongSanLuong"]);
+                decimal heSoK = TryParseDecimal(row["HeSoK"]);
+                decimal ql = TryParseDecimal(row["QL(HN)/QL (5TCT)"]);
+
+                decimal giaTri = (heSoK != 0 && ql != 0)
+                    ? (tong * 1000) / (heSoK * ql)
+                    : 0;
+
+                var cmd = new SqlCommand(@"
+                UPDATE TyLeSanLuong
+                SET SanLuongNgoaiTT = @GiaTri
+                WHERE Ngày = @Ngay AND ChuKì = @ChuKi", conn);
+
+                cmd.Parameters.AddWithValue("@GiaTri", giaTri);
+                cmd.Parameters.AddWithValue("@Ngay", row["Ngày"]);
+                cmd.Parameters.AddWithValue("@ChuKi", row["ChuKì"]);
+
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+
     }
 }

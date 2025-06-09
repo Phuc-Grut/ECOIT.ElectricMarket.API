@@ -107,5 +107,26 @@ namespace ECOIT.ElectricMarket.API.Controllers
             return Ok("Tinh thanh cong");
         }
 
+        [HttpPost("cap-nhat-he-so-k")]
+        public async Task<IActionResult> UpdateHeSoK()
+        {
+            await _file3Services.CapNhatHeSoK();
+            return Ok("Tinh thanh cong");
+        }
+
+        [HttpPost("cap-nhat-QLHN_5TCT")]
+        public async Task<IActionResult> UpdateQLHN_5TCT()
+        {
+            await _file3Services.CapNhatCotQLHN_5TCT();
+            return Ok("Tinh thanh cong");
+        }
+
+        [HttpPost("CapNhatSanLuongNgoaiTT")]
+        public async Task<IActionResult> CapNhatSanLuongNgoaiTT()
+        {
+            await _file3Services.CapNhatSanLuongNgoaiTT();
+            return Ok("Tinh thanh cong");
+        }
+
     }
 }
